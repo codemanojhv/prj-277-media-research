@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prj-277-media-research",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "prj-277-media-research"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "PRJ277_DB",
+      "database_name": "prj-277-media-research",
+      "database_id": "243355dd-af43-4a13-a19e-50f6279dc384",
+      "migrations_dir": "cloudflare/migrations"
+    }
+  ],
+  "vars": {
+    "GOI_RELEVANCE_THRESHOLD": "0.55",
+    "JEV_MIN_CONFIDENCE": "0.60",
+    "TYPESAFE_MODEL": "jev-latest",
+    "GEMINI_MODEL": "gemini-3.8-flash"
+  }
+}

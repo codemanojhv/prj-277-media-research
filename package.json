@@ -1,0 +1,17 @@
+{
+  "name": "prj-277",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "demo": "node scripts/demo.mjs",
+    "test:api": "cd apps/api && uv run pytest tests -q",
+    "lint:web": "npm --prefix apps/web run lint",
+    "build:web": "npm --prefix apps/web run build",
+    "presentation": "node scripts/create-project-presentation.mjs",
+    "cf:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-cloudflare.ps1"
+  },
+  "devDependencies": {
+    "pptxgenjs": "^4.0.1",
+    "wrangler": "^4.137.0"
+  }
+}

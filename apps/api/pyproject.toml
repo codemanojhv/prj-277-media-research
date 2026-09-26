@@ -1,0 +1,35 @@
+[project]
+name = "prj-277-api"
+version = "0.1.0"
+description = "Local-first 360-degree regional news analysis prototype"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.14",
+  "beautifulsoup4>=4.12",
+  "fastapi>=0.115",
+  "fastembed>=0.8",
+  "feedparser>=6.0",
+  "httpx>=0.28",
+  "python-multipart>=0.0.20",
+  "python-dotenv>=1.0",
+  "sqlalchemy>=2.0",
+  "uvicorn[standard]>=0.32"
+]
+
+[dependency-groups]
+dev = ["httpx>=0.28", "pytest>=8.3", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008", "E501"]
+
+[tool.uv]
+package = false

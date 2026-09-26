@@ -1,0 +1,1 @@
+The synthetic academic dataset is generated reproducibly by `apps/api/app/seed.py` and persisted locally by `npm run demo`. Each stored synthetic article is marked `is_synthetic=true`; the generated titles and article bodies explicitly state that the fictional scenario is not real reporting.

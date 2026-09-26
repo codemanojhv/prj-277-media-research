@@ -1,0 +1,26 @@
+.venv/
+node_modules/
+apps/web/.open-next/
+apps/web/.wrangler/
+apps/web/cloudflare/demo_seed.sql
+docs/presentation-preview/
+apps/web/node_modules/
+apps/web/.next/
+apps/api/.venv/
+apps/api/.ruff_cache/
+apps/api/.pytest_cache/
+apps/api/__pycache__/
+apps/api/data/*.db
+apps/api/data/*.db-*
+*.py[cod]
+.env
+apps/web/.dev.vars
+.DS_Store
+
+# Local Codex and build metadata
+.agents/
+.codex/
+.impeccable/
+.build-temp/
+*.tsbuildinfo
+docs/pptx-slide-test.pptx
