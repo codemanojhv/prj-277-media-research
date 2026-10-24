@@ -36,11 +36,11 @@ const API_HEADERS = {
 };
 
 const LANGUAGES = [
-  { code: "en", label: "English", google: ["en-IN", "IN:en"], bing: "en-in" },
-  { code: "hi", label: "Hindi", google: ["hi-IN", "IN:hi"], bing: "hi-in" },
-  { code: "kn", label: "Kannada", google: ["kn-IN", "IN:kn"], bing: "kn-in" },
-  { code: "ta", label: "Tamil", google: ["ta-IN", "IN:ta"], bing: "ta-in" },
-  { code: "te", label: "Telugu", google: ["te-IN", "IN:te"], bing: "te-in" },
+  { code: "en", label: "English", bing: "en-in" },
+  { code: "hi", label: "Hindi", bing: "hi-in" },
+  { code: "kn", label: "Kannada", bing: "kn-in" },
+  { code: "ta", label: "Tamil", bing: "ta-in" },
+  { code: "te", label: "Telugu", bing: "te-in" },
 ] as const;
 
 const OUTLETS = [
@@ -48,7 +48,7 @@ const OUTLETS = [
   { id: "indian-express", name: "The Indian Express", domains: ["indianexpress.com"] },
   { id: "times-of-india", name: "The Times of India", domains: ["timesofindia.indiatimes.com"] },
   { id: "hindustan-times", name: "Hindustan Times", domains: ["hindustantimes.com"] },
-  { id: "ndtv", name: "NDTV", domains: ["ndtv.com"] },
+  { id: "ndtv", name: "NDTV", domains: ["ndtv.com", "ndtv.in"] },
   { id: "india-today", name: "India Today", domains: ["indiatoday.in"] },
   { id: "dd-news", name: "DD News", domains: ["ddnews.gov.in"] },
   { id: "pib", name: "Press Information Bureau", domains: ["pib.gov.in"] },
@@ -56,7 +56,28 @@ const OUTLETS = [
   { id: "economic-times", name: "The Economic Times", domains: ["economictimes.indiatimes.com"] },
   { id: "deccan-herald", name: "Deccan Herald", domains: ["deccanherald.com"] },
   { id: "new-indian-express", name: "The New Indian Express", domains: ["newindianexpress.com"] },
+  { id: "aaj-tak", name: "Aaj Tak", domains: ["aajtak.in"] },
+  { id: "amar-ujala", name: "Amar Ujala", domains: ["amarujala.com"] },
+  { id: "bevarahani", name: "Bevarahani", domains: ["bevarahani.com"] },
+  { id: "dainik-bhaskar", name: "Dainik Bhaskar", domains: ["bhaskar.com"] },
+  { id: "thekanal", name: "TheKanal", domains: ["thekanal.in"] },
+  { id: "sakshi", name: "Sakshi", domains: ["sakshi.com"] },
 ] as const;
+
+// shortcut: publisher RSS feeds are recent-only; older archives need a licensed search provider.
+const RESEARCH_RSS_FEEDS = [
+  { provider: "The Indian Express RSS", outletId: "indian-express", sourceName: "The Indian Express", language: "en", url: "https://indianexpress.com/section/india/feed/" },
+  { provider: "Hindustan Times RSS", outletId: "hindustan-times", sourceName: "Hindustan Times", language: "en", url: "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml" },
+  { provider: "NDTV RSS", outletId: "ndtv", sourceName: "NDTV", language: "en", url: "https://feeds.feedburner.com/ndtvnews-india-news" },
+  { provider: "NDTV RSS", outletId: "ndtv", sourceName: "NDTV", language: "hi", url: "https://feeds.feedburner.com/ndtvkhabar-india" },
+  { provider: "Aaj Tak RSS", outletId: "aaj-tak", sourceName: "Aaj Tak", language: "hi", url: "https://www.aajtak.in/rssfeeds?id=home" },
+  { provider: "Amar Ujala RSS", outletId: "amar-ujala", sourceName: "Amar Ujala", language: "hi", url: "https://www.amarujala.com/rss/breaking-news.xml" },
+  { provider: "Dainik Bhaskar RSS", outletId: "dainik-bhaskar", sourceName: "Dainik Bhaskar", language: "hi", url: "https://www.bhaskar.com/rss-v1--category-1061.xml" },
+  { provider: "Bevarahani RSS", outletId: "bevarahani", sourceName: "Bevarahani", language: "kn", url: "https://bevarahani.com/rss/latest-posts" },
+  { provider: "TheKanal RSS", outletId: "thekanal", sourceName: "TheKanal", language: "ta", url: "https://thekanal.in/ta-IN/feeds/category/general/rss.xml" },
+  { provider: "Sakshi RSS", outletId: "sakshi", sourceName: "Sakshi", language: "te", url: "https://www.sakshi.com/rss.xml" },
+] as const;
+const RESEARCH_PROVIDERS = ["Bing News RSS", ...new Set(RESEARCH_RSS_FEEDS.map((feed) => feed.provider))];
 
 const ARTICLE_SELECT = `
   SELECT a.id, a.source_id, a.url, a.title, a.raw_content, a.clean_content, a.author,
@@ -65,8 +86,7 @@ const ARTICLE_SELECT = `
     a.research_job_id, a.collected_at, a.processed_at,
     s.name AS source_name, s.domain AS source_domain,
     aa.goi_relevance_score, aa.is_goi_relevant, aa.relevance_reasons,
-    aa.sentiment, aa.sentiment_score, aa.sentiment_confidence, aa.stance,
-    aa.stance_target, aa.stance_confidence, aa.summary, aa.key_points, aa.topics,
+    aa.sentiment, aa.sentiment_score, aa.sentiment_confidence, aa.summary, aa.key_points, aa.topics,
     aa.entities, aa.claims, aa.concerns, aa.positive_aspects, aa.evidence,
     aa.model, aa.created_at AS analysis_created_at
   FROM articles a
@@ -110,12 +130,6 @@ const SENTIMENT_CHOICES: Record<string, string> = {
   neutral: "The article is mainly factual or descriptive without a clear evaluative tone.",
   uncertain: "The article is too short, ambiguous, or insufficiently evaluative to classify.",
 };
-const STANCE_CHOICES: Record<string, string> = {
-  supportive: "The article's own framing supports the specified Union Government policy or action.",
-  critical: "The article's own framing criticizes the specified Union Government policy or action.",
-  mixed: "The article's own framing has meaningful supportive and critical elements.",
-  unclear: "The article does not express a sufficiently clear stance toward the specified target.",
-};
 const TOPIC_CHOICES: Record<string, string> = {
   economy: "Economy, finance, budget, or public spending.",
   employment: "Employment, jobs, skills, or livelihoods.",
@@ -142,6 +156,18 @@ function problem(detail: string, status = 422): Response {
 function parseJson<T>(value: unknown, fallback: T): T {
   if (typeof value !== "string") return (value as T) ?? fallback;
   try { return JSON.parse(value) as T; } catch { return fallback; }
+}
+
+function articleEvidence(value: unknown): JsonObject {
+  const evidence = { ...parseJson<JsonObject>(value, {}) };
+  delete evidence.stance;
+  const decisions = evidence.provider_decisions;
+  if (decisions && typeof decisions === "object" && !Array.isArray(decisions)) {
+    const publicDecisions = { ...(decisions as JsonObject) };
+    delete publicDecisions.stance;
+    evidence.provider_decisions = publicDecisions;
+  }
+  return evidence;
 }
 
 function n(value: unknown, fallback = 0): number {
@@ -177,7 +203,6 @@ function articleCard(row: Row) {
     research_job_id: row.research_job_id == null ? null : n(row.research_job_id),
     goi_relevance: n(row.goi_relevance_score),
     sentiment: String(row.sentiment || "pending"),
-    stance: String(row.stance || "pending"),
     topics: parseJson<Array<{ topic: string; confidence: number; evidence: string }>>(row.topics, []),
     summary: String(row.summary || "Processing pending"),
   };
@@ -192,9 +217,6 @@ function analysisDetail(row: Row, env: EdgeEnvironment) {
     sentiment: String(row.sentiment || "uncertain"),
     sentiment_score: n(row.sentiment_score),
     sentiment_confidence: n(row.sentiment_confidence),
-    stance: String(row.stance || "unclear"),
-    stance_target: String(row.stance_target || "Union Government policy"),
-    stance_confidence: n(row.stance_confidence),
     summary: String(row.summary || ""),
     key_points: parseJson<unknown[]>(row.key_points, []),
     topics: parseJson<unknown[]>(row.topics, []),
@@ -202,7 +224,7 @@ function analysisDetail(row: Row, env: EdgeEnvironment) {
     claims: parseJson<unknown[]>(row.claims, []),
     concerns: parseJson<unknown[]>(row.concerns, []),
     positive_aspects: parseJson<unknown[]>(row.positive_aspects, []),
-    evidence: parseJson<JsonObject>(row.evidence, {}),
+    evidence: articleEvidence(row.evidence),
     model: String(row.model || "local-evidence-v1"),
     created_at: row.analysis_created_at || row.created_at || null,
   };
@@ -234,6 +256,7 @@ function storyCard(story: Row, articles: Row[]) {
     last_updated: story.last_updated || null,
     goi_relevance: n(story.goi_relevance),
     is_synthetic: articles.some((article) => Boolean(article.is_synthetic)),
+    is_manually_curated: Boolean(story.is_manually_curated),
   };
 }
 
@@ -275,13 +298,11 @@ function comparison(articles: Row[]) {
     language, sample_size: group.length,
     sources: [...new Set(group.map((item) => String(item.source_name)))].sort(),
     sentiment_distribution: aggregate(group.map((item) => String(item.sentiment || "uncertain"))),
-    stance_distribution: aggregate(group.map((item) => String(item.stance || "unclear"))),
     main_topics: topTopics(group), article_ids: group.map((item) => n(item.id)),
   }));
   const sourceComparison = [...sources.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([source, group]) => ({
     source, language: String(group[0]?.language || "und"), sample_size: group.length,
     sentiment_distribution: aggregate(group.map((item) => String(item.sentiment || "uncertain"))),
-    stance_distribution: aggregate(group.map((item) => String(item.stance || "unclear"))),
     main_topics: topTopics(group), article_ids: group.map((item) => n(item.id)),
   }));
   const differences: JsonObject[] = [];
@@ -301,7 +322,7 @@ function comparison(articles: Row[]) {
     }
   }
   return {
-    interpretation_note: "Descriptive comparison of the stored article sample. Topic, sentiment, and stance values are model-derived and are not verified facts or a measure of outlet bias.",
+    interpretation_note: "Descriptive comparison of the stored article sample. Topic and article-tone labels are model-derived and are not verified facts or a measure of outlet bias.",
     shared_narrative: {
       topics: [...topicArticles.entries()].filter(([, ids]) => ids.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 6)
         .map(([topic, ids]) => ({ topic, article_ids: ids, sample_count: ids.length })),
@@ -337,7 +358,7 @@ function providerStatus(env: EdgeEnvironment) {
       synthetic_records_use_local: true,
     },
     message: `${useJev && ready
-      ? "JEV handles structured relevance, sentiment, stance, and primary-topic decisions for collected non-synthetic articles."
+      ? "JEV handles structured relevance, article tone, and primary-topic decisions for collected non-synthetic articles."
       : useJev
         ? "JEV is selected but needs the server-side TYPESAFE_API_KEY secret; local rules remain active until it is set."
         : "Local evidence rules handle structured classifications. TypeSafe JEV can be enabled with the server-side TYPESAFE_API_KEY secret."} ${geminiKey
@@ -395,14 +416,6 @@ function localAnalysis(title: string, text: string, language: string) {
   else if (positive.length) { sentiment = "positive"; sentimentScore = 0.62; sentimentConfidence = 0.64; }
   else if (negative.length) { sentiment = "negative"; sentimentScore = -0.62; sentimentConfidence = 0.64; }
 
-  const targetTerms = ["government of india", "union government", "central government", "भारत सरकार", "केंद्र सरकार", "ಭಾರತ ಸರ್ಕಾರ", "ಕೇಂದ್ರ ಸರ್ಕಾರ", "இந்திய அரசு", "மத்திய அரசு", "భారత ప్రభుత్వం", "కేంద్ర ప్రభుత్వం"];
-  const hasTarget = containsAny(content, targetTerms).length > 0;
-  let stance = "unclear";
-  let stanceConfidence = 0.22;
-  if (hasTarget && positive.length && negative.length) { stance = "mixed"; stanceConfidence = 0.52; }
-  else if (hasTarget && positive.length) { stance = "supportive"; stanceConfidence = 0.56; }
-  else if (hasTarget && negative.length) { stance = "critical"; stanceConfidence = 0.56; }
-
   const topics = Object.entries(TOPIC_TERMS).flatMap(([topic, terms]) => {
     const matched = containsAny(content, terms);
     return matched.length ? [{ topic, confidence: 0.62, evidence: matched[0] }] : [];
@@ -420,7 +433,6 @@ function localAnalysis(title: string, text: string, language: string) {
   const relevanceScore = Math.min(0.95, relevanceReasons.length ? 0.4 + Math.min(relevanceReasons.length, 3) * 0.18 : 0.08);
   const evidence: JsonObject = {
     sentiment: [...positive.slice(0, 1), ...negative.slice(0, 1)],
-    stance: [...positive.slice(0, 1), ...negative.slice(0, 1)],
     topics: topics.map((topic) => topic.evidence),
     summary: parts.slice(0, 2),
   };
@@ -431,9 +443,6 @@ function localAnalysis(title: string, text: string, language: string) {
     sentiment,
     sentiment_score: sentimentScore,
     sentiment_confidence: sentimentConfidence,
-    stance,
-    stance_target: hasTarget ? "Union Government policy" : "Unspecified target",
-    stance_confidence: stanceConfidence,
     summary: parts.slice(0, 2).join(" ").slice(0, 620) || "The article does not contain enough text to summarize.",
     key_points: keyPoints,
     topics,
@@ -485,7 +494,6 @@ async function classifyWithJev(title: string, text: string, language: string, en
         },
       },
       sentiment: question("Classify the article's overall evaluative tone. Do not treat a quoted person's tone as automatically the article's own tone.", SENTIMENT_CHOICES),
-      stance: question("Classify the article's own framing toward Union Government policy. Do not infer stance from sentiment alone; use unclear when the target or stance is not explicit.", STANCE_CHOICES),
       primary_topic: question("Choose the single main topic of this article.", TOPIC_CHOICES),
     },
   };
@@ -502,7 +510,6 @@ async function classifyWithJev(title: string, text: string, language: string, en
   if (!relevance || relevance.type !== "noul") throw new Error("JEV response has an invalid relevance decision.");
   const probYes = probability(relevance.noul, "relevance");
   const sentiment = choiceAnswer(payload.answers, "sentiment", SENTIMENT_CHOICES);
-  const stance = choiceAnswer(payload.answers, "stance", STANCE_CHOICES);
   const primaryTopic = choiceAnswer(payload.answers, "primary_topic", TOPIC_CHOICES);
   const usage = payload.usage || {};
   return {
@@ -511,7 +518,7 @@ async function classifyWithJev(title: string, text: string, language: string, en
     input_characters: boundedText.length,
     truncated: fullText.length > boundedText.length,
     usage: { input_tokens: Math.max(0, Math.trunc(n(usage.input_tokens))), output_tokens: Math.max(0, Math.trunc(n(usage.output_tokens))) },
-    relevance: { probability_yes: probYes }, sentiment, stance, primary_topic: primaryTopic,
+    relevance: { probability_yes: probYes }, sentiment, primary_topic: primaryTopic,
   };
 }
 
@@ -605,10 +612,6 @@ async function analyzedRecord(title: string, content: string, language: string, 
     analysis.sentiment_score = sentimentUsed
       ? Math.round(((decisions.sentiment.probabilities.positive || 0) - (decisions.sentiment.probabilities.negative || 0)) * 10000) / 10000
       : 0;
-    const hasTarget = analysis.stance_target !== "Unspecified target";
-    const stanceUsed = hasTarget && decisions.stance.confidence >= threshold && decisions.stance.choice !== "unclear";
-    analysis.stance = stanceUsed ? decisions.stance.choice : "unclear";
-    analysis.stance_confidence = hasTarget ? decisions.stance.confidence : 0.22;
     const primary = decisions.primary_topic;
     const usePrimary = primary.confidence >= threshold && !["other", "uncertain"].includes(primary.choice);
     if (usePrimary && !analysis.topics.some((item) => item.topic === primary.choice)) {
@@ -626,7 +629,6 @@ async function analyzedRecord(title: string, content: string, language: string, 
         usage: decisions.usage,
         relevance: { probability_yes: relevance, threshold: relevanceThreshold, effective_label: analysis.is_goi_relevant ? "relevant" : "below threshold" },
         sentiment: { ...decisions.sentiment, effective_label: analysis.sentiment, used: sentimentUsed },
-        stance: { ...decisions.stance, effective_label: analysis.stance, used: stanceUsed, target_detected_in_text: hasTarget },
         primary_topic: { ...primary, used_in_topic_counts: usePrimary },
         note: "JEV returns typed decisions, not quote-level rationales. Evidence snippets and summaries are local text extractions; review the complete article before relying on classifications.",
       },
@@ -679,6 +681,19 @@ function filteredWhere(params: URLSearchParams, alias = "a", includeStory = fals
   if (jobId) { clauses.push(`${alias}.research_job_id = ?`); values.push(n(jobId)); }
   const storyId = params.get("story_id");
   if (includeStory && storyId) { clauses.push("EXISTS (SELECT 1 FROM story_articles sf WHERE sf.article_id=a.id AND sf.story_id=?)"); values.push(n(storyId)); }
+  for (const key of ["sentiment"] as const) {
+    const value = params.get(key);
+    if (value) { clauses.push(`EXISTS (SELECT 1 FROM article_analysis af WHERE af.article_id=${alias}.id AND af.${key}=?)`); values.push(value); }
+  }
+  const topic = params.get("topic");
+  if (topic) { clauses.push("EXISTS (SELECT 1 FROM article_analysis af WHERE af.article_id=a.id AND lower(af.topics) LIKE ?)"); values.push(`%${topic.toLocaleLowerCase()}%`); }
+  const relevance = params.get("is_goi_relevant");
+  if (relevance === "true" || relevance === "false") {
+    clauses.push("EXISTS (SELECT 1 FROM article_analysis af WHERE af.article_id=a.id AND af.is_goi_relevant=?)");
+    values.push(relevance === "true" ? 1 : 0);
+  }
+  const synthetic = params.get("is_synthetic");
+  if (synthetic === "true" || synthetic === "false") { clauses.push(`${alias}.is_synthetic = ?`); values.push(synthetic === "true" ? 1 : 0); }
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", values };
 }
 
@@ -842,13 +857,13 @@ async function ingestRecord(db: D1Database, env: EdgeEnvironment, input: Row, op
   const analysis = await analyzedRecord(title, content, language, synthetic, env);
   const batch: D1Statement[] = [db.prepare(`INSERT INTO article_analysis (
       article_id, goi_relevance_score, is_goi_relevant, relevance_reasons, sentiment, sentiment_score,
-      sentiment_confidence, stance, stance_target, stance_confidence, summary, key_points, topics,
+      sentiment_confidence, summary, key_points, topics,
       entities, claims, concerns, positive_aspects, evidence, model, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       n(article.id), analysis.goi_relevance_score, analysis.is_goi_relevant ? 1 : 0, JSON.stringify(analysis.relevance_reasons),
-      analysis.sentiment, analysis.sentiment_score, analysis.sentiment_confidence, analysis.stance, analysis.stance_target,
-      analysis.stance_confidence, analysis.summary, JSON.stringify(analysis.key_points), JSON.stringify(analysis.topics),
+      analysis.sentiment, analysis.sentiment_score, analysis.sentiment_confidence,
+      analysis.summary, JSON.stringify(analysis.key_points), JSON.stringify(analysis.topics),
       JSON.stringify(analysis.entities), JSON.stringify(analysis.claims), JSON.stringify(analysis.concerns),
       JSON.stringify(analysis.positive_aspects), JSON.stringify(analysis.evidence), analysis.model, new Date().toISOString(),
     )];
@@ -909,7 +924,6 @@ async function overview(db: D1Database) {
   const byLanguage = new Map<string, number>();
   const bySource = new Map<string, number>();
   const sentiments = new Map<string, number>();
-  const stances = new Map<string, number>();
   const topics = new Map<string, number>();
   const dates = new Map<string, number>();
   let relevant = 0;
@@ -918,7 +932,6 @@ async function overview(db: D1Database) {
     byLanguage.set(article.language, (byLanguage.get(article.language) || 0) + 1);
     bySource.set(article.source_name, (bySource.get(article.source_name) || 0) + 1);
     if (article.sentiment) sentiments.set(article.sentiment, (sentiments.get(article.sentiment) || 0) + 1);
-    if (article.stance) stances.set(article.stance, (stances.get(article.stance) || 0) + 1);
     if (Boolean(article.is_goi_relevant)) relevant += 1;
     if (Boolean(article.is_synthetic)) synthetic += 1;
     const date = String(article.published_at || "").slice(0, 10);
@@ -937,10 +950,62 @@ async function overview(db: D1Database) {
     by_language: sorted(byLanguage).sort((a, b) => a.label.localeCompare(b.label)),
     by_source: sorted(bySource, 8),
     sentiment_distribution: sorted(sentiments),
-    stance_distribution: sorted(stances),
     topic_distribution: sorted(topics, 8),
     articles_over_time: [...dates.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-14).map(([date, count]) => ({ date, count })),
   };
+}
+
+async function analyticsBreakdown(db: D1Database, params: URLSearchParams) {
+  const dimension = params.get("dimension") || "language";
+  if (dimension !== "language" && dimension !== "source") return problem("dimension must be 'language' or 'source'.");
+  const filter = filteredWhere(params, "a");
+  const articles = await all<Row>(db, `SELECT a.id, a.language, s.name AS source_name,
+    aa.sentiment, aa.topics FROM articles a JOIN sources s ON s.id=a.source_id
+    LEFT JOIN article_analysis aa ON aa.article_id=a.id ${filter.sql}`, ...filter.values);
+  const groups = new Map<string, Row[]>();
+  for (const article of articles) {
+    const label = String(dimension === "language" ? article.language : article.source_name);
+    groups.set(label, [...(groups.get(label) || []), article]);
+  }
+  const items = [...groups.entries()].map(([label, group]) => {
+    const topics = new Map<string, number>();
+    for (const article of group) for (const item of parseJson<Array<{ topic: string }>>(article.topics, [])) {
+      topics.set(item.topic, (topics.get(item.topic) || 0) + 1);
+    }
+    return {
+      label, sample_size: group.length,
+      languages: aggregate(group.map((article) => String(article.language))),
+      sources: [...new Set(group.map((article) => String(article.source_name)))].sort(),
+      sentiment_distribution: aggregate(group.map((article) => String(article.sentiment || "uncertain"))),
+      topic_distribution: [...topics.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8).map(([topic, count]) => ({ topic, count })),
+      article_ids: group.map((article) => n(article.id)),
+    };
+  }).sort((left, right) => right.sample_size - left.sample_size || left.label.localeCompare(right.label));
+  return json({
+    dimension, sample_size: articles.length, items,
+    interpretation_note: "Counts describe only the selected stored sample. Model-derived article tone and topics are research aids, not verified facts or measures of outlet bias.",
+  });
+}
+
+async function lexicalSearch(db: D1Database, params: URLSearchParams) {
+  const query = (params.get("q") || "").trim().slice(0, 200);
+  const terms = [...new Set(query.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) || [])].filter((term) => term.length > 1).slice(0, 12);
+  if (query.length < 2 || !terms.length) return problem("Enter a search query with at least one term.");
+  const filter = filteredWhere(params, "a", true);
+  const termFilter = terms.map(() => "(lower(a.title) LIKE ? OR lower(a.clean_content) LIKE ?)").join(" OR ");
+  const rows = await all<Row>(db,
+    `${ARTICLE_SELECT} ${filter.sql ? `${filter.sql} AND` : "WHERE"} (${termFilter}) ORDER BY a.published_at DESC`,
+    ...filter.values, ...terms.flatMap((term) => [`%${term}%`, `%${term}%`]),
+  );
+  const items = rows.map((row) => {
+    const title = String(row.title || "").toLocaleLowerCase();
+    const content = String(row.clean_content || "").toLocaleLowerCase();
+    const matched = terms.filter((term) => title.includes(term) || content.includes(term)).length;
+    const score = matched / terms.length + (terms.some((term) => title.includes(term)) ? 0.25 : 0);
+    return { score: Math.min(1, score), article: articleCard(row) };
+  }).sort((left, right) => right.score - left.score || String(right.article.published_at).localeCompare(String(left.article.published_at)));
+  const limit = Math.max(1, Math.min(50, n(params.get("limit"), 25)));
+  return json({ query, count: items.length, score_mode: "lexical-fallback", items: items.slice(0, limit) });
 }
 
 async function storyList(db: D1Database, params: URLSearchParams) {
@@ -950,13 +1015,19 @@ async function storyList(db: D1Database, params: URLSearchParams) {
   const values = [...filter.values];
   if (jobId) { clauses.push("a.research_job_id = ?"); values.push(n(jobId)); }
   const limit = Math.max(1, Math.min(200, n(params.get("limit"), 100)));
+  const offset = Math.max(0, n(params.get("offset")));
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const stories = await all<Row>(db,
-    `SELECT DISTINCT s.* FROM stories s JOIN story_articles sa ON sa.story_id=s.id JOIN articles a ON a.id=sa.article_id ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""} ORDER BY s.last_updated DESC LIMIT ?`,
-    ...values, limit,
+    `SELECT DISTINCT s.* FROM stories s JOIN story_articles sa ON sa.story_id=s.id JOIN articles a ON a.id=sa.article_id ${where} ORDER BY s.last_updated DESC LIMIT ? OFFSET ?`,
+    ...values, limit, offset,
+  );
+  const count = await one<Row>(db,
+    `SELECT COUNT(DISTINCT s.id) AS count FROM stories s JOIN story_articles sa ON sa.story_id=s.id JOIN articles a ON a.id=sa.article_id ${where}`,
+    ...values,
   );
   const items = [];
   for (const story of stories) items.push(storyCard(story, await fetchStoryArticles(db, n(story.id))));
-  return { items, count: items.length };
+  return { items, count: n(count?.count) };
 }
 
 async function storyDetail(db: D1Database, id: number) {
@@ -998,21 +1069,20 @@ async function reanalyzeArticle(db: D1Database, env: EdgeEnvironment, id: number
   const createdAt = new Date().toISOString();
   await db.prepare(`INSERT INTO article_analysis (
       article_id, goi_relevance_score, is_goi_relevant, relevance_reasons, sentiment, sentiment_score,
-      sentiment_confidence, stance, stance_target, stance_confidence, summary, key_points, topics,
+      sentiment_confidence, summary, key_points, topics,
       entities, claims, concerns, positive_aspects, evidence, model, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(article_id) DO UPDATE SET
       goi_relevance_score=excluded.goi_relevance_score, is_goi_relevant=excluded.is_goi_relevant,
       relevance_reasons=excluded.relevance_reasons, sentiment=excluded.sentiment,
       sentiment_score=excluded.sentiment_score, sentiment_confidence=excluded.sentiment_confidence,
-      stance=excluded.stance, stance_target=excluded.stance_target, stance_confidence=excluded.stance_confidence,
       summary=excluded.summary, key_points=excluded.key_points, topics=excluded.topics, entities=excluded.entities,
       claims=excluded.claims, concerns=excluded.concerns, positive_aspects=excluded.positive_aspects,
       evidence=excluded.evidence, model=excluded.model, created_at=excluded.created_at`)
     .bind(
       id, analysis.goi_relevance_score, analysis.is_goi_relevant ? 1 : 0, JSON.stringify(analysis.relevance_reasons),
-      analysis.sentiment, analysis.sentiment_score, analysis.sentiment_confidence, analysis.stance,
-      analysis.stance_target, analysis.stance_confidence, analysis.summary, JSON.stringify(analysis.key_points),
+      analysis.sentiment, analysis.sentiment_score, analysis.sentiment_confidence,
+      analysis.summary, JSON.stringify(analysis.key_points),
       JSON.stringify(analysis.topics), JSON.stringify(analysis.entities), JSON.stringify(analysis.claims),
       JSON.stringify(analysis.concerns), JSON.stringify(analysis.positive_aspects), JSON.stringify(analysis.evidence),
       analysis.model, createdAt,
@@ -1113,11 +1183,6 @@ function queryTerm(query: string, aliases: string[]) {
   return [...new Set(terms)].slice(0, 9);
 }
 
-function googleQuery(terms: string[], fromDate: string, toDate: string, domains: string[]) {
-  const phrase = terms.map((term) => `"${term}"`).join(" OR ");
-  return `(${phrase}) after:${fromDate} before:${new Date(new Date(toDate).getTime() + 86400000).toISOString().slice(0, 10)}${domains.length ? ` (${domains.map((domain) => `site:${domain}`).join(" OR ")})` : ""}`;
-}
-
 function outletMatches(url: string, sourceName: string, outletIds: string[]) {
   if (!outletIds.length) return true;
   const host = sourceDomain(url) || "";
@@ -1147,15 +1212,13 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
   await setJob(db, jobId, "running", 2, { request, phase: "Starting online search" });
 
   const warnings: string[] = [];
-  const candidates: Array<{ title: string; url: string; discoveryUrl: string; sourceName: string; snippet: string; published: string; language: string; contentKind: "article_page" | "feed_excerpt" }> = [];
-  const selectedDomains = OUTLETS.filter((outlet) => outletIds.includes(outlet.id)).flatMap((outlet) => [...outlet.domains]);
+  const candidates: Array<{ provider: string; title: string; url: string; discoveryUrl: string; sourceName: string; snippet: string; published: string; language: string; contentKind: "article_page" | "feed_excerpt" }> = [];
   for (const languageCode of languages) {
     const language = LANGUAGES.find((entry) => entry.code === languageCode)!;
-    const googleLocale = language.google;
-    const feedSpecs = [
-      { provider: "Bing News RSS", url: "https://www.bing.com/news/search?q=" + encodeURIComponent(query) + "&format=rss&setlang=" + language.bing },
-      { provider: "Google News RSS", url: `https://news.google.com/rss/search?q=${encodeURIComponent(googleQuery(terms, fromDate, toDate, selectedDomains))}&hl=${googleLocale[0]}&gl=IN&ceid=${googleLocale[1]}` },
-    ];
+    const feedSpecs = terms.map((term) => ({
+      provider: "Bing News RSS",
+      url: "https://www.bing.com/news/search?q=" + encodeURIComponent(term) + "&format=rss&setlang=" + language.bing,
+    }));
     for (const feedSpec of feedSpecs) {
       try {
         const { text } = await fetchPublicText(feedSpec.url, 500_000);
@@ -1166,10 +1229,6 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
           catch { continue; }
           if (!/^https?:\/\//i.test(url)) continue;
           let sourceName = entry.sourceName;
-          if (feedSpec.provider === "Google News RSS" && !sourceName) {
-            const parts = entry.title.split(/\s+[|–—-]\s+/u);
-            if (parts.length > 1) sourceName = parts[parts.length - 1];
-          }
           sourceName = sourceName || sourceDomain(url) || "Online news source";
           const outletSourceName = sourceName.replace(/\s+on\s+msn$/iu, "").trim();
           if (!outletMatches(url, outletSourceName, outletIds)) continue;
@@ -1194,7 +1253,7 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
           }
           const uniqueKey = `${url}|${entry.title.toLocaleLowerCase()}`;
           if (!candidates.some((candidate) => `${candidate.url}|${candidate.title.toLocaleLowerCase()}` === uniqueKey)) {
-            candidates.push({ title: entry.title, url, discoveryUrl: feedSpec.url, sourceName, snippet: cleanText(snippet).slice(0, 30000), published: published.toISOString(), language: languageCode, contentKind });
+            candidates.push({ provider: feedSpec.provider, title: entry.title, url, discoveryUrl: feedSpec.url, sourceName, snippet: cleanText(snippet).slice(0, 30000), published: published.toISOString(), language: languageCode, contentKind });
           }
           if (candidates.filter((candidate) => candidate.language === languageCode).length >= requestedPerLanguage) break;
         }
@@ -1202,6 +1261,53 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
         warnings.push(`${feedSpec.provider} (${language.label}): ${error instanceof Error ? error.message : "request failed"}`);
       }
       if (candidates.filter((candidate) => candidate.language === languageCode).length >= requestedPerLanguage) break;
+    }
+  }
+
+  for (const feed of RESEARCH_RSS_FEEDS) {
+    if (!languages.includes(feed.language) || (outletIds.length && !outletIds.includes(feed.outletId))) continue;
+    if (candidates.filter((candidate) => candidate.language === feed.language).length >= requestedPerLanguage) continue;
+    try {
+      const { text } = await fetchPublicText(feed.url, 500_000);
+      let pageFetches = 0;
+      for (const entry of xmlEntries(text)) {
+        if (candidates.filter((candidate) => candidate.language === feed.language).length >= requestedPerLanguage) break;
+        if (!containsAny(`${entry.title} ${entry.description}`, terms).length) continue;
+        let articleUrl: string;
+        try { articleUrl = safePublicUrl(entry.link).href; }
+        catch { continue; }
+        if (!outletMatches(articleUrl, feed.sourceName, outletIds)) continue;
+        const detected = detectLanguage(`${entry.title} ${entry.description}`, feed.language);
+        if (detected.confidence > 0.55 && detected.language !== feed.language) continue;
+        const published = new Date(entry.published);
+        if (Number.isNaN(published.valueOf()) || !dateInRange(published.toISOString(), fromDate, toDate)) continue;
+        const uniqueKey = `${articleUrl}|${entry.title.toLocaleLowerCase()}`;
+        if (candidates.some((candidate) => `${candidate.url}|${candidate.title.toLocaleLowerCase()}` === uniqueKey)) continue;
+        let snippet = cleanText(entry.description);
+        let contentKind: "article_page" | "feed_excerpt" = "feed_excerpt";
+        let pageFailure = "";
+        // shortcut: cap page reads at the sample size per publisher; expand only for deeper text collection.
+        if (pageFetches >= requestedPerLanguage && snippet.length < 40) break;
+        if (pageFetches < requestedPerLanguage) {
+          pageFetches += 1;
+          try {
+            const page = await fetchPublicText(articleUrl, 700_000);
+            const textContent = htmlText(page.text);
+            if (textContent.length > 180) { snippet = textContent; contentKind = "article_page"; }
+          } catch (error) {
+            pageFailure = error instanceof Error ? error.message : "request failed";
+          }
+        }
+        if (snippet.length < 40) {
+          warnings.push(`${feed.provider}: no usable article text${pageFailure ? `; publisher page ${pageFailure}` : "; publisher text was too short"}.`);
+          continue;
+        }
+        if (pageFailure) warnings.push(`${feed.sourceName}: publisher page was not captured; stored the RSS excerpt (${pageFailure}).`);
+        candidates.push({ provider: feed.provider, title: entry.title, url: articleUrl, discoveryUrl: feed.url, sourceName: feed.sourceName, snippet: snippet.slice(0, 30000), published: published.toISOString(), language: feed.language, contentKind });
+      }
+    } catch (error) {
+      const language = LANGUAGES.find((entry) => entry.code === feed.language)?.label || feed.language;
+      warnings.push(`${feed.provider} (${language}): ${error instanceof Error ? error.message : "request failed"}`);
     }
   }
 
@@ -1213,7 +1319,7 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
   const articleIds: number[] = [];
   const storyIds = new Set<number>();
   const sampleDate = candidates[0]?.published || new Date().toISOString();
-  const story = await getOrCreateStory(db, clusterKey, `[SEARCH] ${query}`, sampleDate);
+  const story = candidates.length ? await getOrCreateStory(db, clusterKey, `[SEARCH] ${query}`, sampleDate) : null;
   const outcomes = await Promise.all(candidates.map(async (candidate) => {
     try {
       const result = await ingestRecord(db, env, {
@@ -1241,10 +1347,15 @@ async function researchSearch(db: D1Database, env: EdgeEnvironment, body: Row) {
       if (candidate.contentKind === "article_page") fullTextCount += 1; else excerptCount += 1;
     }
   }
+  if (!created && story) {
+    await db.prepare("DELETE FROM stories WHERE id = ? AND NOT EXISTS (SELECT 1 FROM story_articles WHERE story_id = ?)")
+      .bind(n(story.id), n(story.id)).run();
+  }
   const result = {
     created, duplicates, failed: warnings.length, article_ids: articleIds, story_ids: [...storyIds],
     stories_created: storyIds.size, articles_processed: created, full_text_count: fullTextCount,
-    excerpt_count: excerptCount, provider_counts: { "Google News RSS + Bing News RSS": candidates.length },
+    excerpt_count: excerptCount, provider_counts: Object.fromEntries(RESEARCH_PROVIDERS.map((provider) => [provider,
+      candidates.filter((candidate) => candidate.provider === provider).length])),
     warnings, embedding_model: "edge-token-similarity-v1",
   };
   const metadata = { request, phase: "Complete", result };
@@ -1353,13 +1464,15 @@ async function getApi(request: Request, db: D1Database, env: EdgeEnvironment, pa
   if (resource === "health") return json({ status: "ok", service: "prj-277-cloudflare-worker" });
   if (resource === "analysis" && path[1] === "provider") return json(providerStatus(env));
   if (resource === "analytics" && path[1] === "overview") return json(await overview(db));
+  if (resource === "analytics" && path[1] === "breakdown") return analyticsBreakdown(db, params);
+  if (resource === "search") return lexicalSearch(db, params);
   if (resource === "research" && path[1] === "options") {
     const today = new Date();
     const from = new Date(today.valueOf() - 29 * 86400000);
     return json({
       languages: LANGUAGES.map(({ code, label }) => ({ code, label })), outlets: OUTLETS,
       default_from_date: from.toISOString().slice(0, 10), default_to_date: today.toISOString().slice(0, 10),
-      providers: ["Google News RSS", "Bing News RSS"], requires_api_key: false,
+      providers: RESEARCH_PROVIDERS, requires_api_key: false,
       maximum_date_range_days: 366, maximum_articles_per_language: 3,
     });
   }
@@ -1434,9 +1547,7 @@ async function postApi(request: Request, db: D1Database, env: EdgeEnvironment, p
     catch (error) { return problem(`RSS feed could not be collected: ${error instanceof Error ? error.message : "feed request failed"}`); }
   }
   if (resource === "pipeline" && path[1] === "run") {
-    const jobId = await newJob(db, "process-and-cluster", { phase: "Complete", result: { articles_processed: 0, stories_created: 0, embedding_model: "edge-token-similarity-v1" } });
-    await setJob(db, jobId, "completed", 100, { phase: "Complete", result: { articles_processed: 0, stories_created: 0, embedding_model: "edge-token-similarity-v1" } });
-    return json({ id: jobId, status: "completed", status_url: `/api/pipeline/jobs/${jobId}` }, 202);
+    return problem("Full corpus reanalysis is available through the local FastAPI workflow, not this hosted prototype.", 501);
   }
   return problem("API route not found.", 404);
 }

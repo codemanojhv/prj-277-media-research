@@ -40,7 +40,7 @@ cd apps/web
 npx wrangler secret put TYPESAFE_API_KEY
 ```
 
-New non-synthetic articles use TypeSafe JEV for Government of India relevance, sentiment, target-specific stance, and primary topic. Synthetic examples do not call model APIs. The Worker sends bounded article text to TypeSafe; the secret stays server-side. Gemini and OpenRouter credentials are not valid TypeSafe credentials.
+New non-synthetic articles use TypeSafe JEV for Government of India relevance, article sentiment, and primary topic. Synthetic examples do not call model APIs. The Worker sends bounded article text to TypeSafe; the secret stays server-side. Gemini and OpenRouter credentials are not valid TypeSafe credentials.
 
 ## Optional Gemini summary generation
 
@@ -58,7 +58,7 @@ Gemini is used for prose generation; TypeSafe JEV remains responsible for option
 
 ## Hosted prototype boundaries
 
-- Google News RSS and Bing News RSS provide a bounded discovery sample; they do not cover all relevant online media.
+- The Worker searches Bing News RSS first, then fills remaining per-language sample slots from publisher feeds: The Indian Express, Hindustan Times, and NDTV for English; NDTV, Aaj Tak, Amar Ujala, and Dainik Bhaskar for Hindi; Bevarahani for Kannada; TheKanal for Tamil; and Sakshi for Telugu. Feeds are filtered by query, publication date, language, and selected outlet. Publisher feeds contain recent articles only, so they cannot supply an archive for older date ranges. Review each publisher's terms; some limit use or retention to personal or non-commercial purposes. Coverage is not exhaustive, and date, language, provider, and outlet filtering can exclude relevant reports.
 - The Workers research path groups results from one search job as a candidate coverage set. It does not download or use the local FastEmbed model.
 - An inaccessible publisher page may yield a labeled feed excerpt instead of full text.
 - The Worker adapter has not had a full security, scale, or human-labeled model evaluation. Do not use it for sensitive data.

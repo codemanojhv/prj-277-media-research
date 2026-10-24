@@ -12,6 +12,6 @@
   },
   "devDependencies": {
     "pptxgenjs": "^4.0.1",
-    "wrangler": "^4.137.0"
+    "wrangler": "^4.152.0"
   }
 }

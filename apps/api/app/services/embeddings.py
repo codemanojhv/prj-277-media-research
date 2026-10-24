@@ -5,7 +5,7 @@ import math
 import re
 from collections import Counter
 
-from app.core.config import EMBEDDING_MODEL
+from app.core.config import DATA_DIR, EMBEDDING_MODEL
 from app.services.analysis import TOPIC_TERMS
 
 CONCEPT_TERMS: dict[str, list[str]] = {
@@ -83,7 +83,10 @@ class EmbeddingProvider:
                 if self._model is None:
                     from fastembed import TextEmbedding
 
-                    self._model = TextEmbedding(model_name=self.model_name)
+                    self._model = TextEmbedding(
+                        model_name=self.model_name,
+                        cache_dir=str(DATA_DIR / "models"),
+                    )
                 vectors = [[float(value) for value in vector] for vector in self._model.embed(texts)]
                 concepts = [matched_concepts(text) for text in texts]
                 concept_texts = [

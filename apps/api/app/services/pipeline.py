@@ -76,7 +76,7 @@ def process_corpus(db: Session, progress=None, article_ids: list[int] | None = N
         analysis.is_goi_relevant = relevance["is_relevant"]
         analysis.relevance_reasons = relevance["reasons"]
         for name in (
-            "sentiment", "sentiment_score", "sentiment_confidence", "stance", "stance_target", "stance_confidence",
+            "sentiment", "sentiment_score", "sentiment_confidence",
             "summary", "key_points", "topics", "entities", "claims", "concerns", "positive_aspects", "evidence", "model",
         ):
             setattr(analysis, name, result[name])
@@ -98,22 +98,39 @@ def process_corpus(db: Session, progress=None, article_ids: list[int] | None = N
             embedding.vector = vector
     db.flush()
 
+    curated_ids = set(db.scalars(
+        select(StoryArticle.article_id)
+        .join(Story, Story.id == StoryArticle.story_id)
+        .where(Story.is_manually_curated.is_(True))
+    ))
+    cluster_articles = [article for article in articles if article.id not in curated_ids]
+    article_indexes = {article.id: index for index, article in enumerate(articles)}
+    cluster_texts = [texts[article_indexes[article.id]] for article in cluster_articles]
+    cluster_vectors = [vectors[article_indexes[article.id]] for article in cluster_articles]
+    automatic_stories = select(Story.id).where(Story.is_manually_curated.is_(False))
     if article_ids is None:
-        db.execute(delete(StoryArticle))
-        db.execute(delete(Story))
-    else:
-        # Online research jobs build story clusters only from the articles they collected.
-        # Existing synthetic data and prior research runs remain intact.
-        db.execute(delete(StoryArticle).where(StoryArticle.article_id.in_(article_ids)))
-    find, union = _union_find(len(articles))
+        db.execute(delete(StoryArticle).where(StoryArticle.story_id.in_(automatic_stories)))
+        db.execute(delete(Story).where(Story.is_manually_curated.is_(False)))
+    elif cluster_articles:
+        # Scoped jobs rebuild only their own automatic memberships and retain researcher curation.
+        cluster_ids = [article.id for article in cluster_articles]
+        db.execute(delete(StoryArticle).where(
+            StoryArticle.article_id.in_(cluster_ids), StoryArticle.story_id.in_(automatic_stories)
+        ))
+        empty_automatic_stories = select(Story.id).where(
+            Story.is_manually_curated.is_(False),
+            ~select(StoryArticle.id).where(StoryArticle.story_id == Story.id).exists(),
+        )
+        db.execute(delete(Story).where(Story.id.in_(empty_automatic_stories)))
+    find, union = _union_find(len(cluster_articles))
     edge_scores: dict[tuple[int, int], float] = {}
     dense = not embedding_model.startswith("local-lexical")
     threshold = 0.61 if dense else 0.53
-    for left in range(len(articles)):
-        for right in range(left + 1, len(articles)):
-            score = cosine(vectors[left], vectors[right])
-            left_concepts = set(matched_concepts(texts[left]))
-            right_concepts = set(matched_concepts(texts[right]))
+    for left in range(len(cluster_articles)):
+        for right in range(left + 1, len(cluster_articles)):
+            score = cosine(cluster_vectors[left], cluster_vectors[right])
+            left_concepts = set(matched_concepts(cluster_texts[left]))
+            right_concepts = set(matched_concepts(cluster_texts[right]))
             shared_concepts = left_concepts & right_concepts
             if left_concepts and right_concepts and not shared_concepts:
                 continue
@@ -122,11 +139,11 @@ def process_corpus(db: Session, progress=None, article_ids: list[int] | None = N
                 union(left, right)
                 edge_scores[(left, right)] = score
     groups: dict[int, list[int]] = defaultdict(list)
-    for index in range(len(articles)):
+    for index in range(len(cluster_articles)):
         groups[find(index)].append(index)
 
     for member_indexes in groups.values():
-        members = [articles[index] for index in member_indexes]
+        members = [cluster_articles[index] for index in member_indexes]
         english = next((article for article in members if article.language == "en"), None)
         representative = english or members[0]
         analysis = representative.analysis

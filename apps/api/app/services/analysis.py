@@ -63,18 +63,6 @@ def analyze_article(text: str, language: str) -> dict:
     else:
         sentiment, sentiment_score, sentiment_confidence = "uncertain", 0.0, 0.25
 
-    target_terms = ["government of india", "union government", "भारत सरकार", "ಕೇಂದ್ರ ಸರ್ಕಾರ", "ಭಾರತ ಸರ್ಕಾರ", "இந்திய அரசு", "மத்திய அரசு", "భారత ప్రభుత్వం", "కేంద్ర ప్రభుత్వం"]
-    has_target = any(term.casefold() in text.casefold() for term in target_terms)
-    stance = "unclear"
-    stance_confidence = 0.22
-    if has_target and positive_evidence and negative_evidence:
-        stance, stance_confidence = "mixed", 0.52
-    elif has_target and positive_evidence:
-        stance, stance_confidence = "supportive", 0.56
-    elif has_target and negative_evidence:
-        stance, stance_confidence = "critical", 0.56
-    stance_evidence = positive_evidence[:1] + negative_evidence[:1]
-
     topics = []
     folded = text.casefold()
     for topic, terms in TOPIC_TERMS.items():
@@ -104,9 +92,6 @@ def analyze_article(text: str, language: str) -> dict:
         "sentiment": sentiment,
         "sentiment_score": sentiment_score,
         "sentiment_confidence": sentiment_confidence,
-        "stance": stance,
-        "stance_target": "Union Government policy" if has_target else "Unspecified target",
-        "stance_confidence": stance_confidence,
         "summary": summary or "The article does not contain enough text to summarize.",
         "key_points": key_points,
         "topics": topics[:5],
@@ -116,7 +101,6 @@ def analyze_article(text: str, language: str) -> dict:
         "positive_aspects": positive_aspects,
         "evidence": {
             "sentiment": positive_evidence[:1] + negative_evidence[:1],
-            "stance": stance_evidence,
             "topics": [topic["evidence"] for topic in topics[:5]],
             "summary": sentence_list[:2],
         },

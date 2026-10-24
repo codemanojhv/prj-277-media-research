@@ -23,6 +23,7 @@ export default function ResearchSearchPage() {
   const [activeJob, setActiveJob] = useState<ResearchJob | null>(null);
   const [articles, setArticles] = useState<ArticleCard[]>([]);
   const [stories, setStories] = useState<StoryCard[]>([]);
+  const [resultsLoad, setResultsLoad] = useState<{ jobId: number; status: "loading" | "loaded" | "failed" } | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -70,15 +71,26 @@ export default function ResearchSearchPage() {
     if (!activeJob || activeJob.status !== "completed") {
       setArticles([]);
       setStories([]);
+      setResultsLoad(null);
       return;
     }
     let cancelled = false;
+    setResultsLoad({ jobId: activeJob.id, status: "loading" });
     Promise.all([
       apiGet<ArticleList>(`/articles?research_job_id=${activeJob.id}&limit=100`),
       apiGet<StoryList>(`/stories?research_job_id=${activeJob.id}&limit=100`),
     ]).then(([articleList, storyList]) => {
-      if (!cancelled) { setArticles(articleList.items); setStories(storyList.items); }
-    }).catch((issue) => { if (!cancelled) setError(issue.message); });
+      if (!cancelled) {
+        setArticles(articleList.items);
+        setStories(storyList.items);
+        setResultsLoad({ jobId: activeJob.id, status: "loaded" });
+      }
+    }).catch((issue) => {
+      if (!cancelled) {
+        setError(issue.message);
+        setResultsLoad({ jobId: activeJob.id, status: "failed" });
+      }
+    });
     return () => { cancelled = true; };
   }, [activeJob]);
 
@@ -121,6 +133,15 @@ export default function ResearchSearchPage() {
 
   const result = activeJob?.metadata.result;
   const activeRequest = activeJob?.metadata.request;
+  const visibleHistory = activeJob
+    ? history.some((job) => job.id === activeJob.id)
+      ? history.map((job) => job.id === activeJob.id ? activeJob : job)
+      : [activeJob, ...history]
+    : history;
+  const resultStatus = resultsLoad && activeJob && resultsLoad.jobId === activeJob.id ? resultsLoad.status : "loading";
+  const emptyResultsMessage = resultStatus === "loaded"
+    ? "No new articles were stored for this query. Try broadening the dates or including more languages."
+    : resultStatus === "failed" ? "Results could not be loaded. Select this search again to retry." : "Loading results for this search…";
 
   return <>
     <div className="page-heading-row research-heading">
@@ -128,7 +149,7 @@ export default function ResearchSearchPage() {
       <div className="heading-meta"><strong>SEARCH → ANALYZE → COMPARE</strong>{process.env.NEXT_PUBLIC_DEPLOYMENT_LABEL?.includes("CLOUDFLARE") ? "Stored in Cloudflare D1 with source links" : "Stored locally with source links"}</div>
     </div>
 
-    <div className="research-note"><span className="research-note-icon"><Radio size={15} /></span><div><strong>Online news search</strong><span>Uses {options?.providers.join(" and ") || "public news feeds"}. Selection narrows the sample; feeds may miss relevant reports. No model API key is required.</span></div><span className="research-key-status"><Check size={12} /> NO KEY NEEDED</span></div>
+    <div className="research-note"><span className="research-note-icon"><Radio size={15} /></span><div><strong>Online news search</strong><span>Uses {options?.providers.join(", ") || "public news feeds"}. Selection narrows the sample; feeds may miss relevant reports. No model API key is required.</span></div><span className="research-key-status"><Check size={12} /> NO KEY NEEDED</span></div>
 
     {error && <div className="error-state" role="alert">{error}</div>}
 
@@ -169,17 +190,17 @@ export default function ResearchSearchPage() {
         </section>
 
         {activeJob?.status === "completed" && <>
-          <section className="research-result-section"><div className="section-head"><div><h2>Stories to compare</h2><p>Clusters contain articles collected by this search.</p></div><span className="panel-kicker">{stories.length} GROUPS</span></div>
-            {stories.length ? <div className="research-story-list">{stories.map((story) => <Link className="research-story-row" key={story.id} href={`/stories/${story.id}`}><span className="research-story-icon"><Sparkles size={15} /></span><span className="research-story-copy"><strong>{story.canonical_title}</strong><small>{story.article_count} articles · {story.sources.length} outlets · {story.languages.map(languageName).join(", ")}</small></span><ArrowUpRight size={14} /></Link>)}</div> : <div className="empty-state">No new articles were stored for this query. Try broadening the dates or including more languages.</div>}
+          <section className="research-result-section"><div className="section-head"><div><h2>Stories to compare</h2><p>Clusters contain articles collected by this search.</p></div><span className="panel-kicker">{resultStatus === "loaded" ? `${stories.length} GROUPS` : resultStatus === "failed" ? "UNAVAILABLE" : "LOADING"}</span></div>
+            {resultStatus === "loaded" && stories.length ? <div className="research-story-list">{stories.map((story) => <Link className="research-story-row" key={story.id} href={`/stories/${story.id}`}><span className="research-story-icon"><Sparkles size={15} /></span><span className="research-story-copy"><strong>{story.canonical_title}</strong><small>{story.article_count} articles · {story.sources.length} outlets · {story.languages.map(languageName).join(", ")}</small></span><ArrowUpRight size={14} /></Link>)}</div> : <div className="empty-state">{emptyResultsMessage}</div>}
           </section>
-          <section className="research-result-section"><div className="section-head"><div><h2>Collected articles</h2><p>Open a source record to review its text, evidence, and provenance.</p></div><span className="panel-kicker">{articles.length} RECORDS</span></div>
-            {articles.length ? <div className="article-list research-article-list">{articles.map((article) => <div className="research-article-row" key={article.id}><Link href={`/articles/${article.id}`} className="research-article-copy"><strong>{article.title}</strong><small>{article.source.name} · {languageName(article.language)} · {formatDate(article.published_at)}</small></Link><span className={`content-kind ${article.content_kind === "feed_excerpt" ? "excerpt" : "full"}`}>{article.content_kind === "feed_excerpt" ? "FEED EXCERPT" : "PAGE TEXT"}</span><a aria-label={`Open provider or source result for ${article.title}`} href={article.url} target="_blank" rel="noreferrer" className="source-open"><ExternalLink size={13} /></a></div>)}</div> : <div className="empty-state">No new article records to display.</div>}
+          <section className="research-result-section"><div className="section-head"><div><h2>Collected articles</h2><p>Open a source record to review its text, evidence, and provenance.</p></div><span className="panel-kicker">{resultStatus === "loaded" ? `${articles.length} RECORDS` : resultStatus === "failed" ? "UNAVAILABLE" : "LOADING"}</span></div>
+            {resultStatus === "loaded" && articles.length ? <div className="article-list research-article-list">{articles.map((article) => <div className="research-article-row" key={article.id}><Link href={`/articles/${article.id}`} className="research-article-copy"><strong>{article.title}</strong><small>{article.source.name} · {languageName(article.language)} · {formatDate(article.published_at)}</small></Link><span className={`content-kind ${article.content_kind === "feed_excerpt" ? "excerpt" : "full"}`}>{article.content_kind === "feed_excerpt" ? "FEED EXCERPT" : "PAGE TEXT"}</span><a aria-label={`Open provider or source result for ${article.title}`} href={article.url} target="_blank" rel="noreferrer" className="source-open"><ExternalLink size={13} /></a></div>)}</div> : <div className="empty-state">{resultStatus === "loaded" ? "No new article records to display." : emptyResultsMessage}</div>}
           </section>
           <p className="page-footer-note">Stored records come from the feeds and source pages returned for this search. Story similarities and article analysis are model inferences for research review, not verified findings.</p>
         </>}
 
-        <section className="research-history-section"><div className="section-head"><div><h2>Recent searches</h2><p>Open a previous collection job.</p></div><span className="panel-kicker">{history.length} JOBS</span></div>
-          {history.length ? <div className="research-history-list">{history.slice(0, 8).map((job) => <button type="button" className={`history-row ${job.id === activeJobId ? "selected" : ""}`} key={job.id} onClick={() => { setActiveJobId(job.id); setActiveJob(job); setError(""); }}><span className={`history-status ${job.status}`} /><span className="history-copy"><strong>{job.metadata.request?.query || `Search ${job.id}`}</strong><small>{job.metadata.request?.from_date || ""} · {job.metadata.request?.languages?.map(languageName).join(", ") || ""}</small></span><span className="history-result">{job.status === "completed" ? `${job.metadata.result?.created ?? 0} new` : job.status}</span></button>)}</div> : <div className="history-empty">Your completed search jobs will appear here.</div>}
+        <section className="research-history-section"><div className="section-head"><div><h2>Recent searches</h2><p>Open a previous collection job.</p></div><span className="panel-kicker">{visibleHistory.length} JOBS</span></div>
+          {visibleHistory.length ? <div className="research-history-list">{visibleHistory.slice(0, 8).map((job) => <button type="button" className={`history-row ${job.id === activeJobId ? "selected" : ""}`} key={job.id} onClick={() => { setActiveJobId(job.id); setActiveJob(job); setError(""); }}><span className={`history-status ${job.status}`} /><span className="history-copy"><strong>{job.metadata.request?.query || `Search ${job.id}`}</strong><small>{job.metadata.request?.from_date || ""} · {job.metadata.request?.languages?.map(languageName).join(", ") || ""}</small></span><span className="history-result">{job.status === "completed" ? `${job.metadata.result?.created ?? 0} new` : job.status}</span></button>)}</div> : <div className="history-empty">Your completed search jobs will appear here.</div>}
         </section>
       </div>
     </div>

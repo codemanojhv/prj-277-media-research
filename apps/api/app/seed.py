@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.core.config import PROJECT_ROOT
-from app.db.models import Article, Base, Source, Story
+from app.db.models import Article, Base
 from app.db.session import SessionLocal, engine
 from app.services.ingestion import ingest_records
 from app.services.pipeline import process_corpus
@@ -153,16 +153,7 @@ def seed() -> dict:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # Refresh only generated demo records so edits to the fixture are reflected on each run.
-        for article in list(db.scalars(select(Article).where(Article.is_synthetic.is_(True)))):
-            db.delete(article)
-        db.flush()
-        for story in list(db.scalars(select(Story).where(~Story.article_links.any()))):
-            db.delete(story)
-        for source in list(db.scalars(select(Source))):
-            if not db.scalar(select(Article.id).where(Article.source_id == source.id).limit(1)):
-                db.delete(source)
-        db.commit()
+        # Keep existing demo records so startup never erases researcher curation.
         records = generate_demo_articles()
         sample_file = PROJECT_ROOT / "data" / "sample" / "prj277_synthetic_articles.json"
         sample_file.parent.mkdir(parents=True, exist_ok=True)

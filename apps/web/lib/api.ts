@@ -1,4 +1,11 @@
 export const API = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "/api" : "http://127.0.0.1:8000/api");
+const LOCAL_REACTIONS = process.env.NEXT_PUBLIC_LOCAL_REACTIONS === "1";
+
+function requestUrl(path: string) {
+  return LOCAL_REACTIONS && /^\/articles\/\d+\/reactions(?:\/collect)?$/.test(path)
+    ? `/local-reactions${path}`
+    : `${API}${path}`;
+}
 
 export type CountLabel = { label: string; count: number };
 export type Overview = {
@@ -12,7 +19,6 @@ export type Overview = {
   by_language: CountLabel[];
   by_source: CountLabel[];
   sentiment_distribution: CountLabel[];
-  stance_distribution: CountLabel[];
   topic_distribution: CountLabel[];
   articles_over_time: { date: string; count: number }[];
 };
@@ -44,6 +50,18 @@ export type StoryCard = {
   last_updated: string | null;
   goi_relevance: number;
   is_synthetic: boolean;
+  is_manually_curated: boolean;
+};
+export type SourceRecord = {
+  id: number;
+  name: string;
+  domain: string | null;
+  language: string;
+  region: string | null;
+  source_type: string;
+  rss_url: string | null;
+  is_active: boolean;
+  article_count: number;
 };
 export type ArticleCard = {
   id: number;
@@ -62,7 +80,6 @@ export type ArticleCard = {
   research_job_id: number | null;
   goi_relevance: number;
   sentiment: string;
-  stance: string;
   topics: { topic: string; confidence: number; evidence: string }[];
   summary: string;
 };
@@ -112,7 +129,6 @@ export type StoryDetail = StoryCard & {
       sample_size: number;
       sources: string[];
       sentiment_distribution: Record<string, number>;
-      stance_distribution: Record<string, number>;
       main_topics: { topic: string; count: number }[];
       article_ids: number[];
     }[];
@@ -121,7 +137,6 @@ export type StoryDetail = StoryCard & {
       language: string;
       sample_size: number;
       sentiment_distribution: Record<string, number>;
-      stance_distribution: Record<string, number>;
       main_topics: { topic: string; count: number }[];
       article_ids: number[];
     }[];
@@ -137,7 +152,7 @@ export type StoryDetail = StoryCard & {
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { cache: "no-store" });
+  const response = await fetch(requestUrl(path), { cache: "no-store" });
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.detail || `API request failed (${response.status})`);
@@ -145,11 +160,11 @@ export async function apiGet<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+async function apiWrite<T>(path: string, method: "POST" | "PUT" | "PATCH" | "DELETE", body?: unknown): Promise<T> {
+  const response = await fetch(requestUrl(path), {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
   });
   if (!response.ok) {
@@ -159,6 +174,11 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
+
+export const apiPost = <T>(path: string, body?: unknown) => apiWrite<T>(path, "POST", body);
+export const apiPut = <T>(path: string, body: unknown) => apiWrite<T>(path, "PUT", body);
+export const apiPatch = <T>(path: string, body: unknown) => apiWrite<T>(path, "PATCH", body);
+export const apiDelete = <T>(path: string) => apiWrite<T>(path, "DELETE");
 
 export type ResearchOptions = {
   languages: { code: string; label: string }[];

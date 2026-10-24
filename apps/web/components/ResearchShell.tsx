@@ -2,19 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, ChartNoAxesCombined, Database, FileText, FlaskConical, PanelsTopLeft, RadioTower, Search } from "lucide-react";
+import { BookOpenText, ChartNoAxesCombined, Database, FileText, FlaskConical, PanelsTopLeft, RadioTower, Search, SlidersHorizontal } from "lucide-react";
 
 const navigation = [
   { href: "/", label: "Overview", icon: PanelsTopLeft },
   { href: "/research", label: "Search coverage", icon: Search },
   { href: "/stories", label: "Stories", icon: ChartNoAxesCombined },
   { href: "/articles", label: "Articles", icon: FileText },
+  { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined },
+  { href: "/search", label: "Explore corpus", icon: Search },
+  { href: "/operations", label: "Operations", icon: SlidersHorizontal, localOnly: true },
   { href: "/methodology", label: "Methodology", icon: BookOpenText },
 ];
 
 export function ResearchShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const deploymentLabel = process.env.NEXT_PUBLIC_DEPLOYMENT_LABEL || "LOCAL DEMO";
+  const hosted = deploymentLabel.includes("CLOUDFLARE");
   const storageLabel = deploymentLabel.includes("CLOUDFLARE") ? "CLOUDFLARE D1 RESEARCH STORE" : "LOCAL RESEARCH WORKSPACE";
   return (
     <div className="workspace">
@@ -26,7 +30,7 @@ export function ResearchShell({ children }: { children: React.ReactNode }) {
         <div className="side-rule" />
         <p className="side-caption">RESEARCH DESK</p>
         <nav className="side-nav" aria-label="Main navigation">
-          {navigation.map(({ href, label, icon: Icon }) => {
+          {navigation.filter((item) => !item.localOnly || !hosted).map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return <Link key={href} href={href} className={`nav-link ${active ? "active" : ""}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{active && <span className="nav-indicator" />}</Link>;
           })}

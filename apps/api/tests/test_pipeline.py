@@ -68,14 +68,12 @@ def test_relevance_requires_central_government_evidence():
     assert result["reasons"] == []
 
 
-def test_analysis_keeps_sentiment_and_stance_separate_and_evidence_linked():
+def test_analysis_extracts_article_sentiment_and_evidence():
     result = analyze_article(
         "The Government of India announced a welfare scheme. Supporters welcomed the improvement and described a benefit. Local groups raised concerns about delay and limited access.",
         "en",
     )
     assert result["sentiment"] == "mixed"
-    assert result["stance"] == "mixed"
-    assert result["stance_target"] == "Union Government policy"
     assert result["evidence"]["sentiment"]
     assert result["concerns"]
     assert result["positive_aspects"]

@@ -23,9 +23,6 @@ type ArticleDetail = ArticleCard & {
     sentiment: string;
     sentiment_score: number;
     sentiment_confidence: number;
-    stance: string;
-    stance_target: string;
-    stance_confidence: number;
     summary: string;
     key_points: { text: string; type: string; confidence: number }[];
     topics: { topic: string; confidence: number; evidence: string }[];
@@ -35,7 +32,6 @@ type ArticleDetail = ArticleCard & {
     positive_aspects: { text: string; type: string; confidence: number }[];
     evidence: {
       sentiment: string[];
-      stance: string[];
       topics: string[];
       summary: string[];
       gemini_generation?: {
@@ -57,7 +53,6 @@ type ArticleDetail = ArticleCard & {
         note: string;
         relevance: { probability_yes: number; threshold: number; effective_label: string };
         sentiment: { choice: string; confidence: number; effective_label: string; used: boolean; probabilities: Record<string, number> };
-        stance: { choice: string; confidence: number; effective_label: string; used: boolean; target_detected_in_text: boolean };
         primary_topic: { choice: string; confidence: number; used_in_topic_counts: boolean };
       };
     };
@@ -120,7 +115,7 @@ export default function ArticleDetailPage() {
               <div className="analysis-block"><h3>Key points · Gemini-generated</h3>{analysis.evidence.gemini_generation.key_points.map((point, index) => <div key={`${index}-${point.evidence}`} style={{ marginTop: index ? 10 : 0 }}><p style={{ color: "#516058", fontSize: 11, lineHeight: 1.6, margin: "0 0 5px" }}>{point.text}</p><Evidence evidence={[point.evidence]} /></div>)}<div className="count-mono" style={{ marginTop: 8 }}>{analysis.evidence.gemini_generation.model} · {analysis.evidence.gemini_generation.input_characters.toLocaleString()} input characters{analysis.evidence.gemini_generation.input_truncated ? " · source excerpt was bounded" : ""}</div><div className="count-mono" style={{ marginTop: 4 }}>{analysis.evidence.gemini_generation.note}</div></div>
             </>}
             {analysis.evidence.gemini_note && <div className="note-box">{analysis.evidence.gemini_note}</div>}
-            {analysis.evidence.provider_decisions && <div className="note-box"><strong>{analysis.evidence.provider_decisions.provider} · {analysis.evidence.provider_decisions.model}</strong><br />{analysis.evidence.provider_decisions.note}<br /><br />JEV sentiment: {analysis.evidence.provider_decisions.sentiment.effective_label} ({Math.round(analysis.evidence.provider_decisions.sentiment.confidence * 100)}%); stance: {analysis.evidence.provider_decisions.stance.effective_label} ({Math.round(analysis.evidence.provider_decisions.stance.confidence * 100)}%); primary topic: {analysis.evidence.provider_decisions.primary_topic.choice}. {analysis.evidence.provider_decisions.input_truncated && "The article text sent to JEV was truncated to the configured character limit."}</div>}
+            {analysis.evidence.provider_decisions && <div className="note-box"><strong>{analysis.evidence.provider_decisions.provider} · {analysis.evidence.provider_decisions.model}</strong><br />{analysis.evidence.provider_decisions.note}<br /><br />JEV article tone: {analysis.evidence.provider_decisions.sentiment.effective_label} ({Math.round(analysis.evidence.provider_decisions.sentiment.confidence * 100)}%); primary topic: {analysis.evidence.provider_decisions.primary_topic.choice}. {analysis.evidence.provider_decisions.input_truncated && "The article text sent to JEV was truncated to the configured character limit."}</div>}
             <AnalysisBlock title="Key claims" evidence={analysis.claims.map((claim) => claim.text)} confidence={analysis.claims[0] ? Math.round(analysis.claims[0].confidence * 100) : undefined} />
             <AnalysisBlock title="Concerns extracted" evidence={analysis.concerns.map((item) => item.text)} confidence={analysis.concerns[0] ? Math.round(analysis.concerns[0].confidence * 100) : undefined} />
             <AnalysisBlock title="Positive aspects extracted" evidence={analysis.positive_aspects.map((item) => item.text)} confidence={analysis.positive_aspects[0] ? Math.round(analysis.positive_aspects[0].confidence * 100) : undefined} />
@@ -130,8 +125,7 @@ export default function ArticleDetailPage() {
 
       <aside>
         <section className="panel detail-section" style={{ marginBottom: 13 }}><h2>Model interpretation</h2>{analysis ? <>
-          <div className="analysis-block"><h3>Sentiment · inferred</h3><span className={`badge ${analysis.sentiment}`}>{analysis.sentiment}</span><span className="confidence">{Math.round(analysis.sentiment_confidence * 100)}% confidence</span><div className="count-mono" style={{ marginTop: 6 }}>Score {analysis.sentiment_score.toFixed(2)} · distinct from political stance</div><Evidence evidence={analysis.evidence.sentiment} /></div>
-          <div className="analysis-block"><h3>Stance · inferred target</h3><span className={`badge ${analysis.stance}`}>{analysis.stance}</span><span className="confidence">{Math.round(analysis.stance_confidence * 100)}% confidence</span><div className="count-mono" style={{ marginTop: 6 }}>Target: {analysis.stance_target}</div><Evidence evidence={analysis.evidence.stance} /></div>
+          <div className="analysis-block"><h3>Article tone · inferred</h3><span className={`badge ${analysis.sentiment}`}>{analysis.sentiment}</span><span className="confidence">{Math.round(analysis.sentiment_confidence * 100)}% confidence</span><div className="count-mono" style={{ marginTop: 6 }}>Tone of the article text; audience views are summarized separately above.</div><Evidence evidence={analysis.evidence.sentiment} /></div>
           <div className="analysis-block"><h3>GoI relevance · calculated</h3><div className="analysis-value">{analysis.is_goi_relevant ? "Relevant in this sample" : "Below threshold"}<span className="confidence">{Math.round(analysis.goi_relevance_score * 100)}%</span></div><div className="count-mono" style={{ marginTop: 5 }}>Threshold {Math.round(analysis.goi_relevance_threshold * 100)}%</div><div className="topic-chip-list" style={{ marginTop: 7 }}>{analysis.relevance_reasons.map((reason) => <span key={reason} className="topic-chip">{reason}</span>)}</div></div>
           <div className="analysis-block"><h3>Topics · inferred</h3><div className="topic-chip-list">{analysis.topics.map((topic) => <span className="topic-chip" key={topic.topic}>{topic.topic}<small>{Math.round(topic.confidence * 100)}%</small></span>)}</div></div>
           <div className="analysis-block"><h3>Entities · extracted</h3><div className="topic-chip-list">{analysis.entities.length ? analysis.entities.map((entity, index) => <span className="topic-chip" key={`${entity.text}-${index}`}>{entity.text}<small>{entity.type}</small></span>) : <span className="count-mono">None detected</span>}</div></div>

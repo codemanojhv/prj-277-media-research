@@ -18,10 +18,6 @@ def jev_payload() -> dict:
                 "type": "choice", "choice": "mixed", "confidence": 0.82,
                 "probabilities": {"positive": 0.12, "negative": 0.11, "mixed": 0.68, "neutral": 0.06, "uncertain": 0.03},
             },
-            "stance": {
-                "type": "choice", "choice": "critical", "confidence": 0.78,
-                "probabilities": {"supportive": 0.08, "critical": 0.78, "mixed": 0.09, "unclear": 0.05},
-            },
             "primary_topic": {
                 "type": "choice", "choice": "governance", "confidence": 0.75,
                 "probabilities": {"governance": 0.75, "welfare": 0.15, "other": 0.1},
@@ -48,7 +44,7 @@ def test_jev_uses_one_typed_request_for_unicode_article():
     assert observed["body"]["model"] == "jev-latest"
     assert observed["body"]["state"]["language"] == "hi"
     assert "भारत सरकार" in observed["body"]["state"]["article_text"]
-    assert set(observed["body"]["questions"]) == {"goi_relevance", "sentiment", "stance", "primary_topic"}
+    assert set(observed["body"]["questions"]) == {"goi_relevance", "sentiment", "primary_topic"}
     assert result["model"] == "jev-1.13.0"
     assert result["relevance"]["probability_yes"] == 0.87
     assert result["sentiment"]["choice"] == "mixed"
@@ -83,11 +79,10 @@ def test_jev_http_failure_does_not_include_response_body():
     assert "private token diagnostic" not in str(error.value)
 
 
-def test_jev_decisions_respect_confidence_target_and_evidence_boundaries():
+def test_jev_decisions_respect_confidence_and_evidence_boundaries():
     local = {
         "sentiment": "uncertain", "sentiment_score": 0.0, "sentiment_confidence": 0.25,
-        "stance": "unclear", "stance_target": "Union Government policy", "stance_confidence": 0.22,
-        "evidence": {"sentiment": ["The source's evidence sentence."], "stance": [], "topics": [], "summary": []},
+        "evidence": {"sentiment": ["The source's evidence sentence."], "topics": [], "summary": []},
         "model": "local-evidence-rules-v1/en",
     }
     baseline_relevance = {"score": 0.3, "is_relevant": False, "reasons": ["local indicator"]}
@@ -96,13 +91,11 @@ def test_jev_decisions_respect_confidence_target_and_evidence_boundaries():
         "usage": {"input_tokens": 20, "output_tokens": 4},
         "relevance": {"probability_yes": 0.87},
         "sentiment": {"choice": "mixed", "confidence": 0.82, "probabilities": {"positive": 0.12, "negative": 0.11, "mixed": 0.68}},
-        "stance": {"choice": "critical", "confidence": 0.78, "probabilities": {"critical": 0.78}},
         "primary_topic": {"choice": "governance", "confidence": 0.75, "probabilities": {"governance": 0.75}},
     }
 
     enriched, relevance = apply_jev_decisions(local, baseline_relevance, decisions, 0.60)
     assert enriched["sentiment"] == "mixed"
-    assert enriched["stance"] == "critical"
     assert enriched["evidence"]["sentiment"] == local["evidence"]["sentiment"]
     assert "quote-level rationales" in enriched["evidence"]["provider_decisions"]["note"]
     assert enriched["evidence"]["provider_decisions"]["primary_topic"]["used_in_topic_counts"] is False
@@ -110,12 +103,9 @@ def test_jev_decisions_respect_confidence_target_and_evidence_boundaries():
     assert relevance["is_relevant"] is True
 
     decisions["sentiment"]["confidence"] = 0.4
-    decisions["stance"]["confidence"] = 0.95
-    local["stance_target"] = "Unspecified target"
     low_confidence, _ = apply_jev_decisions(local, baseline_relevance, decisions, 0.60)
     assert low_confidence["sentiment"] == "uncertain"
-    assert low_confidence["stance"] == "unclear"
-    assert low_confidence["evidence"]["provider_decisions"]["stance"]["used"] is False
+    assert low_confidence["evidence"]["provider_decisions"]["sentiment"]["used"] is False
 
 
 def test_pipeline_sends_only_non_synthetic_articles_to_jev(monkeypatch, db):
@@ -139,7 +129,6 @@ def test_pipeline_sends_only_non_synthetic_articles_to_jev(monkeypatch, db):
                 "truncated": False, "usage": {"input_tokens": 15, "output_tokens": 4},
                 "relevance": {"probability_yes": 0.9},
                 "sentiment": {"choice": "positive", "confidence": 0.9, "probabilities": {"positive": 0.9, "negative": 0.02}},
-                "stance": {"choice": "supportive", "confidence": 0.85, "probabilities": {"supportive": 0.85}},
                 "primary_topic": {"choice": "welfare", "confidence": 0.8, "probabilities": {"welfare": 0.8}},
             }
 

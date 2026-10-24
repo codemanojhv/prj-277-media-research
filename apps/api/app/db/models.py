@@ -23,6 +23,7 @@ class Source(Base):
     region: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     source_type: Mapped[str] = mapped_column(String(40), default="news")
     rss_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     articles: Mapped[list[Article]] = relationship(back_populates="source")
 
@@ -69,9 +70,6 @@ class ArticleAnalysis(Base):
     sentiment: Mapped[str] = mapped_column(String(20), default="uncertain", index=True)
     sentiment_score: Mapped[float] = mapped_column(Float, default=0.0)
     sentiment_confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    stance: Mapped[str] = mapped_column(String(20), default="unclear", index=True)
-    stance_target: Mapped[str] = mapped_column(String(160), default="Union Government policy")
-    stance_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     summary: Mapped[str] = mapped_column(Text, default="")
     key_points: Mapped[list[dict]] = mapped_column(JSON, default=list)
     topics: Mapped[list[dict]] = mapped_column(JSON, default=list)
@@ -91,6 +89,7 @@ class Story(Base):
     canonical_title: Mapped[str] = mapped_column(String(500))
     summary: Mapped[str] = mapped_column(Text, default="")
     goi_relevance: Mapped[float] = mapped_column(Float, default=0.0)
+    is_manually_curated: Mapped[bool] = mapped_column(Boolean, default=False)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
@@ -128,3 +127,9 @@ class ProcessingJob(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, default=dict)

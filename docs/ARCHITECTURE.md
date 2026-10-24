@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-  QUERY[Topic + dates + languages + outlets] --> DISC[Google News RSS + Bing News RSS]
+  QUERY[Topic + dates + languages + outlets] --> DISC[Local: Google + Bing RSS; Worker: Bing + publisher RSS]
   DISC --> CAND[Date, outlet, and language checks]
   CAND --> CAP[Publisher page capture / feed excerpt]
   CAP --> NORM

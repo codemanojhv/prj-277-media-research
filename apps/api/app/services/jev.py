@@ -14,12 +14,6 @@ SENTIMENT_CHOICES = {
     "neutral": "The article is mainly factual or descriptive without a clear evaluative tone.",
     "uncertain": "The article is too short, ambiguous, or insufficiently evaluative to classify.",
 }
-STANCE_CHOICES = {
-    "supportive": "The article's own framing supports the specified Union Government policy or action.",
-    "critical": "The article's own framing criticizes the specified Union Government policy or action.",
-    "mixed": "The article's own framing has meaningful supportive and critical elements.",
-    "unclear": "The article does not express a sufficiently clear stance toward the specified target.",
-}
 TOPIC_CHOICES = {
     "economy": "Economy, finance, budget, or public spending.",
     "employment": "Employment, jobs, skills, or livelihoods.",
@@ -139,11 +133,6 @@ class JevDecisionProvider:
                 "instructions": "Classify the article's overall evaluative tone. Do not treat the tone of a quoted person as automatically being the article's own tone.",
                 "criteria": SENTIMENT_CHOICES,
             },
-            "stance": {
-                "type": "choice",
-                "instructions": "Classify the article's own framing toward Union Government policy or action. Do not infer stance from sentiment alone. Choose unclear if the target or stance is not explicit.",
-                "criteria": STANCE_CHOICES,
-            },
             "primary_topic": {
                 "type": "choice",
                 "instructions": "Choose the single main topic of this article.",
@@ -178,7 +167,6 @@ class JevDecisionProvider:
         relevance_answer = _require_answer(answers, "goi_relevance", "noul")
         relevance_probability = _probability(relevance_answer.get("noul"), "goi_relevance")
         sentiment = _choice_answer(answers, "sentiment", set(SENTIMENT_CHOICES))
-        stance = _choice_answer(answers, "stance", set(STANCE_CHOICES))
         primary_topic = _choice_answer(answers, "primary_topic", set(TOPIC_CHOICES))
         usage = payload.get("usage") or {}
         return {
@@ -192,7 +180,6 @@ class JevDecisionProvider:
             },
             "relevance": {"probability_yes": relevance_probability},
             "sentiment": sentiment,
-            "stance": stance,
             "primary_topic": primary_topic,
         }
 
@@ -274,20 +261,6 @@ def apply_jev_decisions(
         **sentiment_decision,
         "effective_label": sentiment_label,
         "used": sentiment_used,
-    }
-
-    stance_decision = decisions["stance"]
-    has_goi_target = local_result.get("stance_target") != "Unspecified target"
-    stance_used = has_goi_target and stance_decision["confidence"] >= threshold and stance_decision["choice"] != "unclear"
-    stance_label = stance_decision["choice"] if stance_used else "unclear"
-    result["stance"] = stance_label
-    result["stance_target"] = "Union Government policy" if has_goi_target else "Unspecified target"
-    result["stance_confidence"] = stance_decision["confidence"] if has_goi_target else 0.22
-    provider_decisions["stance"] = {
-        **stance_decision,
-        "effective_label": stance_label,
-        "used": stance_used,
-        "target_detected_in_text": has_goi_target,
     }
 
     topic_decision = decisions["primary_topic"]

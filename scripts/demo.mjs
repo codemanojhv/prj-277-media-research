@@ -4,6 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+if (existsSync(path.join(root, ".env")) && typeof process.loadEnvFile === "function") {
+  process.loadEnvFile(path.join(root, ".env"));
+}
 const apiDir = path.join(root, "apps", "api");
 const webDir = path.join(root, "apps", "web");
 const uv = process.platform === "win32" ? "uv.exe" : "uv";
@@ -94,6 +97,7 @@ try {
   const web = start(process.execPath, [nextCli, "dev", "--hostname", "127.0.0.1", "--port", webPort], webDir, "Web app", {
     ...process.env,
     NEXT_PUBLIC_API_URL: apiUrl,
+    NEXT_PUBLIC_LOCAL_REACTIONS: "1",
   });
   void web;
   console.log(`\nPRJ_277 demo is ready:\n  Research dashboard: http://127.0.0.1:${webPort}\n  API documentation: ${apiUrl.replace(/\/api$/, "/docs")}\n  Health: ${apiUrl}/health\n\nPress Ctrl+C to stop both services.`);

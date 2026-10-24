@@ -235,12 +235,12 @@ def ingest_url(db: Session, url: str) -> dict:
     return ingest_records(db, [fetch_article_record(url)])
 
 
-def ingest_rss(db: Session, url: str, max_entries: int = 12) -> dict:
+def ingest_rss(db: Session, url: str, max_entries: int = 12, source_name: str | None = None) -> dict:
     feed_response = _get_public_url(url)
     feed = feedparser.parse(feed_response.content)
     if feed.bozo and not feed.entries:
         raise ValueError("The RSS feed could not be parsed")
-    feed_title = clean_text(str(feed.feed.get("title") or urlparse(url).hostname or "RSS source"))[:200]
+    feed_title = clean_text(source_name or str(feed.feed.get("title") or urlparse(url).hostname or "RSS source"))[:200]
     records: list[dict] = []
     errors: list[str] = []
     for entry in feed.entries[:max_entries]:
