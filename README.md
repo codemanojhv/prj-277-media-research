@@ -4,7 +4,7 @@ A local-first academic prototype for comparing how Government of India-related s
 
 ## Run the demo
 
-Prerequisites: Python 3.12, Node.js with npm, and `uv`. No Docker daemon, paid AI key, or external database is required.
+Prerequisites: Python 3.12, Node.js with npm, and `uv`.
 
 ```powershell
 npm run demo
