@@ -54,10 +54,16 @@ def process_corpus(db: Session, progress=None, article_ids: list[int] | None = N
         relevance = assess_relevance(f"{article.title} {article.clean_content}", RELEVANCE_THRESHOLD)
         result = analyze_article(article.clean_content, language)
         if decision_provider is not None and not article.is_synthetic:
-            decisions = decision_provider.classify_article(article.title, article.clean_content, language)
-            result, relevance = jev_service.apply_jev_decisions(
-                result, relevance, decisions, jev_service.config.JEV_MIN_CONFIDENCE
-            )
+            try:
+                decisions = decision_provider.classify_article(article.title, article.clean_content, language)
+                result, relevance = jev_service.apply_jev_decisions(
+                    result, relevance, decisions, jev_service.config.JEV_MIN_CONFIDENCE
+                )
+            except jev_service.JevProviderError as exc:
+                result["evidence"] = {
+                    **result.get("evidence", {}),
+                    "jev_note": f"JEV was unavailable ({exc}). Local evidence rules were used.",
+                }
         if text_provider is not None and not article.is_synthetic:
             try:
                 generated = text_provider.generate_summary(article.title, article.clean_content, language)

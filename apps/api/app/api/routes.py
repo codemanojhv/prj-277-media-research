@@ -780,7 +780,12 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> dict:
 @router.get("/sources")
 def list_sources(db: Session = Depends(get_db)) -> dict:
     sources = list(db.scalars(select(Source).order_by(Source.name)))
-    article_counts = dict(db.execute(select(Article.source_id, func.count(Article.id)).group_by(Article.source_id)))
+    article_counts = {
+        source_id: count
+        for source_id, count in db.execute(
+            select(Article.source_id, func.count(Article.id)).group_by(Article.source_id)
+        ).all()
+    }
     return {"items": [{
         "id": source.id, "name": source.name, "domain": source.domain, "language": source.language,
         "region": source.region, "source_type": source.source_type, "rss_url": source.rss_url,

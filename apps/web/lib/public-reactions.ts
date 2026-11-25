@@ -430,11 +430,8 @@ export async function collectAndAnalyzePublicReactions(
   }
 
   let geminiResult: { model: string; value: JsonRecord } | null = null;
-  let geminiReactions = candidates;
+  let geminiReactions = classified?.reactions ?? candidates;
   if (!classified || env.GEMINI_API_KEY) {
-    geminiReactions = classified
-      ? classified.reactions.filter((reaction) => reaction.sentiment === "positive" || reaction.sentiment === "negative" || reaction.sentiment === "mixed")
-      : candidates;
     if (geminiReactions.length) {
       try {
         geminiResult = await analyzeWithGemini(article.title, geminiReactions, !classified, env);
