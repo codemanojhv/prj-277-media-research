@@ -1,5 +1,5 @@
 export type ReactionLabel = "positive" | "negative" | "mixed" | "neutral" | "uncertain";
-export type ReactionPlatform = "bluesky" | "hacker_news";
+export type ReactionPlatform = "bluesky" | "hacker_news" | "reddit";
 
 export type PublicReaction = {
   platform: ReactionPlatform;
@@ -45,6 +45,7 @@ export type ReactionEnvironment = {
   JEV_MIN_CONFIDENCE?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+  SCRAPECREATORS_API_KEY?: string;
 };
 
 type Candidate = Omit<PublicReaction, "sentiment" | "confidence">;
@@ -231,6 +232,53 @@ async function searchHackerNews(title: string, articleUrl: string, terms: string
   return { items: [...candidates.values()], report };
 }
 
+async function searchReddit(title: string, articleUrl: string, terms: string[], env: ReactionEnvironment) {
+  const candidates = new Map<string, Candidate>();
+  const report: ReactionSourceCoverage = { platform: "reddit", label: "Reddit", status: "unavailable", count: 0, note: "Set SCRAPECREATORS_API_KEY to enable public comment search." };
+  if (!env.SCRAPECREATORS_API_KEY) return { items: [...candidates.values()], report };
+  const endpoint = new URL("https://api.scrapecreators.com/v1/reddit/search");
+  endpoint.searchParams.set("query", terms.slice(0, 5).join(" ") || title.slice(0, 120));
+  endpoint.searchParams.set("filter", "comments");
+  endpoint.searchParams.set("sort", "relevance");
+  endpoint.searchParams.set("trim", "true");
+  try {
+    const response = await fetch(endpoint.toString(), {
+      headers: { accept: "application/json", "x-api-key": env.SCRAPECREATORS_API_KEY },
+      signal: AbortSignal.timeout(11000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json() as JsonRecord;
+    const comments = Array.isArray(payload.comments) ? payload.comments as JsonRecord[] : [];
+    for (const comment of comments) {
+      const text = cleanPublicText(comment.body);
+      const id = String(comment.id || comment.name || "");
+      const post = (comment.post && typeof comment.post === "object" ? comment.post : {}) as JsonRecord;
+      const discussionTitle = cleanPublicText(post.title || comment.post_title || comment.link_title);
+      const postUrl = String(post.url || comment.post_url || "");
+      const rawUrl = String(comment.url || comment.permalink || "");
+      const url = rawUrl.startsWith("/") ? `https://www.reddit.com${rawUrl}` : rawUrl;
+      if (!text || !id || !url.startsWith("https://www.reddit.com/")) continue;
+      const linked = urlMatch(postUrl, articleUrl) || urlMatch(text, articleUrl);
+      if (!linked && !headlineMatch(`${discussionTitle} ${text}`, terms)) continue;
+      candidates.set(`reddit:${id}`, {
+        platform: "reddit", external_id: id, text, url,
+        published_at: String(comment.created_at_iso || comment.created_at || "") || null,
+        discussion_title: discussionTitle || null,
+        engagement_label: "points", likes: safeCount(comment.votes ?? comment.score), replies: 0, reposts: 0,
+        match_basis: linked ? "article_link" : "headline_terms",
+      });
+    }
+    report.status = candidates.size ? "collected" : "no_matches";
+    report.note = candidates.size
+      ? "Reddit comments matched by article link or headline terms; original threads are linked for review."
+      : "No Reddit comments matched this article's URL or headline terms.";
+  } catch (error) {
+    report.note = `Scrape Creators Reddit search unavailable (${error instanceof Error ? error.message : "request failed"}).`;
+  }
+  report.count = candidates.size;
+  return { items: [...candidates.values()], report };
+}
+
 function confidence(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, Math.round(value * 10000) / 10000));
@@ -338,17 +386,20 @@ export async function collectAndAnalyzePublicReactions(
   env: ReactionEnvironment,
 ): Promise<PublicReactionResult> {
   const terms = titleTerms(article.title);
-  const [bluesky, hackerNews] = await Promise.all([
+  const [bluesky, hackerNews, reddit] = await Promise.all([
     searchBluesky(article.title, article.url, terms),
     searchHackerNews(article.title, article.url, terms),
+    searchReddit(article.title, article.url, terms, env),
   ]);
   const rank = (left: Candidate, right: Candidate) => Number(right.match_basis === "article_link") - Number(left.match_basis === "article_link") || (Date.parse(right.published_at || "") || 0) - (Date.parse(left.published_at || "") || 0);
   const selectedBluesky = [...bluesky.items].sort(rank).slice(0, 6);
   const selectedHackerNews = [...hackerNews.items].sort(rank).slice(0, 6);
-  const candidates = [...new Map([...selectedBluesky, ...selectedHackerNews].map((reaction) => [`${reaction.platform}:${reaction.external_id}`, reaction])).values()];
+  const selectedReddit = [...reddit.items].sort(rank).slice(0, 6);
+  const candidates = [...new Map([...selectedBluesky, ...selectedHackerNews, ...selectedReddit].map((reaction) => [`${reaction.platform}:${reaction.external_id}`, reaction])).values()];
   const sources = [
     { ...bluesky.report, count: candidates.filter((reaction) => reaction.platform === "bluesky").length },
     { ...hackerNews.report, count: candidates.filter((reaction) => reaction.platform === "hacker_news").length },
+    { ...reddit.report, count: candidates.filter((reaction) => reaction.platform === "reddit").length },
   ];
   const base: PublicReactionResult = {
     status: candidates.length ? "complete" : "no_results",

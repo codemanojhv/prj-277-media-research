@@ -72,6 +72,7 @@ async function dispatch(request: Request, context: { params: Promise<{ path: str
     JEV_MIN_CONFIDENCE: process.env.JEV_MIN_CONFIDENCE,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     GEMINI_MODEL: process.env.GEMINI_MODEL,
+    SCRAPECREATORS_API_KEY: process.env.SCRAPECREATORS_API_KEY,
   };
   const result = await collectAndAnalyzePublicReactions({ title: article.title, url: article.url }, env);
   const report: LocalReport = {

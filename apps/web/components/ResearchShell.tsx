@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, ChartNoAxesCombined, Database, FileText, FlaskConical, PanelsTopLeft, RadioTower, Search, SlidersHorizontal } from "lucide-react";
+import { BookOpenText, ChartNoAxesCombined, Database, FileText, FlaskConical, PanelsTopLeft, RadioTower, Search, Settings2, SlidersHorizontal } from "lucide-react";
 
 const navigation = [
   { href: "/", label: "Overview", icon: PanelsTopLeft },
@@ -12,6 +12,7 @@ const navigation = [
   { href: "/analytics", label: "Analytics", icon: ChartNoAxesCombined },
   { href: "/search", label: "Explore corpus", icon: Search },
   { href: "/operations", label: "Operations", icon: SlidersHorizontal, localOnly: true },
+  { href: "/settings", label: "Provider keys", icon: Settings2 },
   { href: "/methodology", label: "Methodology", icon: BookOpenText },
 ];
 

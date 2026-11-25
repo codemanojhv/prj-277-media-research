@@ -56,6 +56,16 @@ For optional local Wrangler development, copy `.dev.vars.example` to `.dev.vars`
 
 Gemini is used for prose generation; TypeSafe JEV remains responsible for optional structured classifications. Configure `TYPESAFE_API_KEY` separately if JEV is also desired. Do not paste either key into source files, the browser, or chat.
 
+## Optional Scrape Creators Reddit comments
+
+The public reaction collector can add Reddit comment search through Scrape Creators. Set the key as a Worker secret from `apps/web`:
+
+```powershell
+npx wrangler secret put SCRAPECREATORS_API_KEY
+```
+
+Each uncached scan makes one Reddit comment-search request. The Provider keys page reports whether the secret is present without revealing its value. Do not enter provider keys in the public dashboard or store them in D1. Local demo configuration uses `SCRAPECREATORS_API_KEY` in the root `.env` file.
+
 ## Hosted prototype boundaries
 
 - The Worker searches Bing News RSS first, then fills remaining per-language sample slots from publisher feeds: The Indian Express, Hindustan Times, and NDTV for English; NDTV, Aaj Tak, Amar Ujala, and Dainik Bhaskar for Hindi; Bevarahani for Kannada; TheKanal for Tamil; and Sakshi for Telugu. Feeds are filtered by query, publication date, language, and selected outlet. Publisher feeds contain recent articles only, so they cannot supply an archive for older date ranges. Review each publisher's terms; some limit use or retention to personal or non-commercial purposes. Coverage is not exhaustive, and date, language, provider, and outlet filtering can exclude relevant reports.

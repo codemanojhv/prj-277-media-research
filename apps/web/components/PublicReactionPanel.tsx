@@ -27,7 +27,7 @@ function audienceView(distribution: PublicReactionReport["distribution"] | undef
 }
 
 function platformName(platform: string) {
-  return platform === "hacker_news" ? "Hacker News" : "Bluesky";
+  return platform === "hacker_news" ? "Hacker News" : platform === "reddit" ? "Reddit" : "Bluesky";
 }
 
 export default function PublicReactionPanel({ articleId, synthetic }: { articleId: number; synthetic: boolean }) {
@@ -80,7 +80,7 @@ export default function PublicReactionPanel({ articleId, synthetic }: { articleI
 
     {synthetic ? <div className="note-box">This is a synthetic classroom sample. Public reaction search is available for collected real articles.</div> : <>
       {error && <div className="error-state reaction-error" role="alert">{error}</div>}
-        {loading && <div className="reaction-loading" role="status">Searching public Bluesky posts and Hacker News comments, then classifying matched reactions.</div>}
+        {loading && <div className="reaction-loading" role="status">Searching public Bluesky posts, Hacker News comments, and configured Reddit comments, then classifying matched reactions.</div>}
       {!report && !loading && <div className="reaction-empty"><MessageCircle size={18} /><span>Search public platforms for reactions to this article. Nothing is counted until matching posts are collected.</span></div>}
 
       {report && <div aria-live="polite">

@@ -35,7 +35,7 @@ The deployment command applies D1 migrations, bundles the web/API Worker, and up
 
 ### Public reaction view
 
-Open any collected real article and choose **Search public reactions**. The hosted Worker searches public Bluesky posts and Hacker News comments for the article URL or a strong headline match. Matching posts/comments are classified with TypeSafe JEV; Gemini can add a cautious sample summary linked to the collected text. Favorable and critical reactions determine the observed direction; mixed reactions are reported separately, while neutral and uncertain reactions are excluded. Every result links to its original post/comment. Article tone and public reactions are separate. Scans are capped at 12 posts and cached for five minutes.
+Open any collected real article and choose **Search public reactions**. The hosted Worker searches public Bluesky posts and Hacker News comments; when configured, Scrape Creators adds Reddit comment search for the article URL or a strong headline match. Matching posts/comments are classified with TypeSafe JEV; Gemini can add a cautious sample summary linked to the collected text. Favorable and critical reactions determine the observed direction; mixed reactions are reported separately, while neutral and uncertain reactions are excluded. Every result links to its original post/comment. Article tone and public reactions are separate. Scans are capped at 18 reactions and cached for five minutes.
 
 This is a sample of indexed public posts, not a poll or a measure of the public as a whole. A headline match may discuss the same issue rather than reply to that exact article. News coverage feeds contain publisher reporting, not reader reactions. Public comments on publisher sites use different systems and access rules; they need source-specific integrations and cannot be assumed to exist on every article.
 
@@ -54,6 +54,8 @@ npx wrangler secret put GEMINI_API_KEY
 ```
 
 Gemini and JEV are separate providers. Gemini generates article-grounded prose; evidence is selected by sentence ID and attached from the stored source text. Synthetic records do not call external model APIs. If Gemini is unavailable, the app records that provider status and uses deterministic evidence rules; no local model is downloaded. See [Cloudflare deployment and provider setup](docs/CLOUDFLARE_DEPLOYMENT.md).
+
+To add Reddit comments through Scrape Creators to the public reaction sample, set `SCRAPECREATORS_API_KEY` as a Worker secret using Wrangler. The Provider keys page shows safe configuration status and the command. This is optional; without it, Bluesky and Hacker News collection continue. Local demo keys belong in the root `.env` file.
 
 ## Optional TypeSafe JEV analysis
 

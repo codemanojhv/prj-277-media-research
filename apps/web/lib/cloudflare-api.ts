@@ -18,6 +18,7 @@ export type EdgeEnvironment = {
   TYPESAFE_MODEL?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+  SCRAPECREATORS_API_KEY?: string;
   GEMINI_MAX_ARTICLE_CHARS?: string;
   ANALYSIS_PROVIDER?: string;
   JEV_MIN_CONFIDENCE?: string;
@@ -356,6 +357,12 @@ function providerStatus(env: EdgeEnvironment) {
       ready: geminiKey,
       api_key_configured: geminiKey,
       synthetic_records_use_local: true,
+    },
+    social_reactions: {
+      provider: "scrape_creators",
+      display_name: "Scrape Creators · Reddit comments",
+      ready: Boolean(env.SCRAPECREATORS_API_KEY),
+      api_key_configured: Boolean(env.SCRAPECREATORS_API_KEY),
     },
     message: `${useJev && ready
       ? "JEV handles structured relevance, article tone, and primary-topic decisions for collected non-synthetic articles."
@@ -1139,7 +1146,7 @@ async function reactionRunData(db: D1Database, run: Row, cacheHit = false) {
 async function articleReactionReport(db: D1Database, articleId: number) {
   const article = await one<Row>(db, "SELECT id FROM articles WHERE id = ?", articleId);
   if (!article) return problem("Article not found", 404);
-  const run = await one<Row>(db, "SELECT * FROM reaction_runs WHERE article_id = ? AND collector_version = 'v4' ORDER BY id DESC LIMIT 1", articleId);
+  const run = await one<Row>(db, "SELECT * FROM reaction_runs WHERE article_id = ? AND collector_version = 'v5' ORDER BY id DESC LIMIT 1", articleId);
   return run ? json(await reactionRunData(db, run)) : json({ available: false, article_id: articleId });
 }
 
@@ -1148,7 +1155,7 @@ async function collectArticleReactions(db: D1Database, env: EdgeEnvironment, art
   if (!article) return problem("Article not found", 404);
   if (Boolean(article.is_synthetic)) return problem("Public reactions are available only for collected real articles.", 409);
 
-  const recent = await one<Row>(db, "SELECT * FROM reaction_runs WHERE article_id = ? AND collector_version = 'v4' ORDER BY id DESC LIMIT 1", articleId);
+  const recent = await one<Row>(db, "SELECT * FROM reaction_runs WHERE article_id = ? AND collector_version = 'v5' ORDER BY id DESC LIMIT 1", articleId);
   const elapsed = recent?.created_at ? Date.now() - Date.parse(String(recent.created_at)) : Number.POSITIVE_INFINITY;
   if (recent && Number.isFinite(elapsed) && elapsed >= 0 && elapsed < 5 * 60 * 1000) {
     return json(await reactionRunData(db, recent, true));
@@ -1162,7 +1169,7 @@ async function collectArticleReactions(db: D1Database, env: EdgeEnvironment, art
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       articleId, result.status, result.query, result.sample_count, JSON.stringify(result.distribution), result.summary,
-      JSON.stringify(result.themes), result.classifier, result.summarizer, JSON.stringify(result.sources), JSON.stringify(result.notes), "v4", createdAt,
+      JSON.stringify(result.themes), result.classifier, result.summarizer, JSON.stringify(result.sources), JSON.stringify(result.notes), "v5", createdAt,
     ).run();
   const runId = n(inserted.meta?.last_row_id);
   if (!runId) return problem("Public reactions were collected, but the result could not be saved.", 500);

@@ -37,6 +37,12 @@ class JevProviderError(RuntimeError):
 def provider_status() -> dict[str, Any]:
     provider = config.ANALYSIS_PROVIDER
     gemini_ready = bool(config.GEMINI_API_KEY)
+    social_reactions = {
+        "provider": "scrape_creators",
+        "display_name": "Scrape Creators · Reddit comments",
+        "ready": bool(config.SCRAPECREATORS_API_KEY),
+        "api_key_configured": bool(config.SCRAPECREATORS_API_KEY),
+    }
     generation_provider = {
         "provider": "gemini" if gemini_ready else "local",
         "display_name": "Google Gemini" if gemini_ready else "Local extractive summary",
@@ -55,6 +61,7 @@ def provider_status() -> dict[str, Any]:
             "api_key_configured": ready,
             "synthetic_records_use_local": True,
             "text_generation": generation_provider,
+            "social_reactions": social_reactions,
             "message": (
                 "JEV is enabled for collected, non-synthetic articles. Their text is sent to TypeSafe for structured decisions."
                 if ready
@@ -67,9 +74,10 @@ def provider_status() -> dict[str, Any]:
             "display_name": "Local evidence baseline",
             "model": "local-evidence-rules-v1",
             "ready": True,
-            "api_key_configured": False,
+            "api_key_configured": bool(config.TYPESAFE_API_KEY),
             "synthetic_records_use_local": True,
             "text_generation": generation_provider,
+            "social_reactions": social_reactions,
             "message": "Local rules are active. TypeSafe JEV can be enabled in the server .env file for structured decisions on collected articles."
             + (" Gemini generates summaries with source-checked excerpts." if gemini_ready else " Gemini summary generation can be enabled with GEMINI_API_KEY."),
         }
@@ -81,6 +89,7 @@ def provider_status() -> dict[str, Any]:
         "api_key_configured": bool(config.TYPESAFE_API_KEY),
         "synthetic_records_use_local": True,
         "text_generation": generation_provider,
+        "social_reactions": social_reactions,
         "message": "Set ANALYSIS_PROVIDER to local or typesafe in the server .env file.",
     }
 

@@ -38,6 +38,12 @@ export type AnalysisProviderStatus = {
     api_key_configured: boolean;
     synthetic_records_use_local: boolean;
   };
+  social_reactions?: {
+    provider: string;
+    display_name: string;
+    ready: boolean;
+    api_key_configured: boolean;
+  };
 };
 export type StoryCard = {
   id: number;
@@ -85,7 +91,7 @@ export type ArticleCard = {
 };
 export type PublicReaction = {
   id: number;
-  platform: "bluesky" | "hacker_news";
+  platform: "bluesky" | "hacker_news" | "reddit";
   text: string;
   url: string;
   published_at: string | null;
@@ -110,7 +116,7 @@ export type PublicReactionReport = {
   themes?: { label: string; evidence: string[] }[];
   classifier?: string | null;
   summarizer?: string | null;
-  sources?: { platform: "bluesky" | "hacker_news"; label: string; status: "collected" | "no_matches" | "unavailable"; count: number; note: string }[];
+  sources?: { platform: "bluesky" | "hacker_news" | "reddit"; label: string; status: "collected" | "no_matches" | "unavailable"; count: number; note: string }[];
   notes?: string[];
   reactions?: PublicReaction[];
   collected_at?: string | null;
