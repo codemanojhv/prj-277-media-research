@@ -33,7 +33,12 @@ def _union_find(size: int):
     return find, union
 
 
-def process_corpus(db: Session, progress=None, article_ids: list[int] | None = None) -> dict:
+def process_corpus(
+    db: Session,
+    progress=None,
+    article_ids: list[int] | None = None,
+    user_provider_settings: dict | None = None,
+) -> dict:
     statement = select(Article).options(joinedload(Article.source), joinedload(Article.analysis)).order_by(Article.id)
     if article_ids is not None:
         if not article_ids:
@@ -45,7 +50,18 @@ def process_corpus(db: Session, progress=None, article_ids: list[int] | None = N
     has_real_articles = any(not article.is_synthetic for article in articles)
     use_external_provider = jev_service.config.ANALYSIS_PROVIDER != "local" and has_real_articles
     decision_provider = jev_service.configured_jev_provider() if use_external_provider else None
-    text_provider = gemini_service.configured_gemini_provider() if has_real_articles else None
+    user_gemini_key = (user_provider_settings or {}).get("gemini_api_key") or gemini_service.config.GEMINI_API_KEY
+    user_gemini_model = (user_provider_settings or {}).get("gemini_model") or gemini_service.config.GEMINI_MODEL
+    text_provider = (
+        gemini_service.GeminiSummaryProvider(
+            user_gemini_key,
+            model=user_gemini_model,
+            timeout_seconds=gemini_service.config.GEMINI_TIMEOUT_SECONDS,
+            max_article_chars=gemini_service.config.GEMINI_MAX_ARTICLE_CHARS,
+        )
+        if user_gemini_key and has_real_articles
+        else None
+    )
     texts: list[str] = []
     for index, article in enumerate(articles, start=1):
         language, confidence = detect_language(article.clean_content, article.language)

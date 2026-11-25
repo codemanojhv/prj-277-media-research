@@ -33,7 +33,7 @@ const API_HEADERS = {
   "cache-control": "no-store",
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "content-type",
+  "access-control-allow-headers": "content-type, x-prj277-gemini-key, x-prj277-gemini-model, x-prj277-scrapecreators-key",
 };
 
 const LANGUAGES = [
@@ -1564,11 +1564,20 @@ export async function handleCloudflareApi(request: Request, env: EdgeEnvironment
   const path = url.pathname.split("/").filter(Boolean).slice(1);
   const params = url.searchParams;
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: API_HEADERS });
+  const requestGeminiKey = request.headers.get("x-prj277-gemini-key")?.trim();
+  const requestGeminiModel = request.headers.get("x-prj277-gemini-model")?.trim();
+  const requestScrapeKey = request.headers.get("x-prj277-scrapecreators-key")?.trim();
+  const requestEnv: EdgeEnvironment = {
+    ...env,
+    ...(requestGeminiKey && requestGeminiKey.length <= 4096 && !/[\r\n\u0000]/u.test(requestGeminiKey) ? { GEMINI_API_KEY: requestGeminiKey } : {}),
+    ...(requestGeminiModel && /^[A-Za-z0-9._:/-]{1,120}$/u.test(requestGeminiModel) ? { GEMINI_MODEL: requestGeminiModel } : {}),
+    ...(requestScrapeKey && requestScrapeKey.length <= 4096 && !/[\r\n\u0000]/u.test(requestScrapeKey) ? { SCRAPECREATORS_API_KEY: requestScrapeKey } : {}),
+  };
   const db = env.PRJ277_DB;
   if (!db) return problem("Cloudflare D1 binding PRJ277_DB is not configured.", 503);
   try {
-    if (request.method === "GET") return await getApi(request, db, env, path, params);
-    if (request.method === "POST") return await postApi(request, db, env, path);
+    if (request.method === "GET") return await getApi(request, db, requestEnv, path, params);
+    if (request.method === "POST") return await postApi(request, db, requestEnv, path);
     return problem("Method not allowed.", 405);
   } catch (error) {
     console.error("[PRJ_277 API]", error);

@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import Text, cast, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -354,6 +354,21 @@ def analysis_provider() -> dict:
     return jev_service.provider_status()
 
 
+def _user_provider_settings(request: Request) -> dict[str, str]:
+    key = (request.headers.get("x-prj277-gemini-key") or "").strip()
+    model = (request.headers.get("x-prj277-gemini-model") or "").strip()
+    if key and (len(key) > 4096 or any(character in key for character in "\r\n\x00")):
+        raise HTTPException(status_code=422, detail="Gemini API key is invalid.")
+    if model and not re.fullmatch(r"[A-Za-z0-9._:/-]{1,120}", model):
+        raise HTTPException(status_code=422, detail="Gemini model ID is invalid.")
+    settings: dict[str, str] = {}
+    if key:
+        settings["gemini_api_key"] = key
+    if model:
+        settings["gemini_model"] = model
+    return settings
+
+
 @router.get("/analytics/overview")
 def overview(db: Session = Depends(get_db)) -> dict:
     articles = list(db.scalars(select(Article).options(joinedload(Article.source), joinedload(Article.analysis))))
@@ -503,19 +518,21 @@ def research_options() -> dict:
 
 @router.post("/research/search", status_code=202)
 def start_online_research(
-    request: OnlineResearchRequest,
+    research_request: OnlineResearchRequest,
+    http_request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict:
+    provider_settings = _user_provider_settings(http_request)
     job = ProcessingJob(
         job_type="online-research",
         status="queued",
-        metadata_json={"request": request.model_dump(mode="json"), "phase": "Queued"},
+        metadata_json={"request": research_request.model_dump(mode="json"), "phase": "Queued"},
     )
     db.add(job)
     db.commit()
     db.refresh(job)
-    background_tasks.add_task(_run_online_research_job, job.id)
+    background_tasks.add_task(_run_online_research_job, job.id, provider_settings)
     return {"id": job.id, "status": job.status, "status_url": f"/api/research/jobs/{job.id}"}
 
 
@@ -538,7 +555,7 @@ def get_research_job(job_id: int, db: Session = Depends(get_db)) -> dict:
     return _job_data(job)
 
 
-def _run_online_research_job(job_id: int) -> None:
+def _run_online_research_job(job_id: int, user_provider_settings: dict[str, str] | None = None) -> None:
     db = SessionLocal()
     try:
         job = db.get(ProcessingJob, job_id)
@@ -575,6 +592,7 @@ def _run_online_research_job(job_id: int) -> None:
             pipeline_result = process_corpus(
                 db,
                 article_ids=article_ids,
+                user_provider_settings=user_provider_settings,
                 progress=lambda value: update_progress(55 + round(value * 0.44), "Analyzing, embedding, and clustering collected articles"),
             )
             result.update(pipeline_result)
@@ -782,7 +800,7 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/articles/{article_id}/analyze")
-def analyze_one_article(article_id: int, db: Session = Depends(get_db)) -> dict:
+def analyze_one_article(article_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
     article = db.scalar(
         select(Article).where(Article.id == article_id)
         .options(joinedload(Article.source), joinedload(Article.analysis))
@@ -811,7 +829,18 @@ def analyze_one_article(article_id: int, db: Session = Depends(get_db)) -> dict:
                 "jev_note": f"JEV was unavailable ({exc}). Local evidence rules were used.",
             }
 
-    text_provider = gemini_service.configured_gemini_provider()
+    settings = _user_provider_settings(request)
+    selected_gemini_key = settings.get("gemini_api_key") or gemini_service.config.GEMINI_API_KEY
+    text_provider = (
+        gemini_service.GeminiSummaryProvider(
+            selected_gemini_key,
+            model=settings.get("gemini_model") or gemini_service.config.GEMINI_MODEL,
+            timeout_seconds=gemini_service.config.GEMINI_TIMEOUT_SECONDS,
+            max_article_chars=gemini_service.config.GEMINI_MAX_ARTICLE_CHARS,
+        )
+        if selected_gemini_key
+        else None
+    )
     if text_provider:
         try:
             generated = text_provider.generate_summary(article.title, article.clean_content, language)

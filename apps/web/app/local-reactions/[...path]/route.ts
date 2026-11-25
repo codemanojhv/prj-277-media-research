@@ -74,6 +74,12 @@ async function dispatch(request: Request, context: { params: Promise<{ path: str
     GEMINI_MODEL: process.env.GEMINI_MODEL,
     SCRAPECREATORS_API_KEY: process.env.SCRAPECREATORS_API_KEY,
   };
+  const userGeminiKey = request.headers.get("x-prj277-gemini-key")?.trim();
+  const userGeminiModel = request.headers.get("x-prj277-gemini-model")?.trim();
+  const userScrapeKey = request.headers.get("x-prj277-scrapecreators-key")?.trim();
+  if (userGeminiKey && userGeminiKey.length <= 4096 && !/[\r\n\u0000]/u.test(userGeminiKey)) env.GEMINI_API_KEY = userGeminiKey;
+  if (userGeminiModel && /^[A-Za-z0-9._:/-]{1,120}$/u.test(userGeminiModel)) env.GEMINI_MODEL = userGeminiModel;
+  if (userScrapeKey && userScrapeKey.length <= 4096 && !/[\r\n\u0000]/u.test(userScrapeKey)) env.SCRAPECREATORS_API_KEY = userScrapeKey;
   const result = await collectAndAnalyzePublicReactions({ title: article.title, url: article.url }, env);
   const report: LocalReport = {
     ...result,

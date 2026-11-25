@@ -47,6 +47,8 @@ npx wrangler secret put TYPESAFE_API_KEY
 
 The secret stays server-side. JEV is used for collected non-synthetic records; synthetic examples do not call external model APIs. JEV needs a TypeSafe key specifically—Gemini and OpenRouter keys cannot authenticate to TypeSafe.
 
+For individual use, open **Provider keys** in the app to choose a Gemini model and enter a Gemini key, plus an optional Scrape Creators key. These user keys remain in the current browser tab's session storage and are sent only with the analysis, new coverage search, or reaction request that needs them. They are not saved to D1 or GitHub. Use a trusted device; provider charges apply to the account behind each key. Closing the tab clears the keys. TypeSafe JEV still uses a deployment/server key.
+
 To enable Gemini summaries and key points on the hosted Worker, run this from `apps/web` and enter the key into Wrangler's hidden prompt:
 
 ```powershell
@@ -55,7 +57,7 @@ npx wrangler secret put GEMINI_API_KEY
 
 Gemini and JEV are separate providers. Gemini generates article-grounded prose; evidence is selected by sentence ID and attached from the stored source text. Synthetic records do not call external model APIs. If Gemini is unavailable, the app records that provider status and uses deterministic evidence rules; no local model is downloaded. See [Cloudflare deployment and provider setup](docs/CLOUDFLARE_DEPLOYMENT.md).
 
-To add Reddit comments through Scrape Creators to the public reaction sample, set `SCRAPECREATORS_API_KEY` as a Worker secret using Wrangler. The Provider keys page shows safe configuration status and the command. This is optional; without it, Bluesky and Hacker News collection continue. Local demo keys belong in the root `.env` file.
+Deployment owners may set shared fallback keys with Wrangler secrets. Individual users can instead supply their own Scrape Creators key from **Provider keys**. Reddit comment collection is optional; without either a user key or a shared key, Bluesky and Hacker News collection continue. Local deployment defaults can also be set in the root `.env` file.
 
 ## Optional TypeSafe JEV analysis
 

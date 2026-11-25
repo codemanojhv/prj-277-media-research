@@ -1,3 +1,5 @@
+import { headersForProviderRequest } from "@/lib/user-provider-settings";
+
 export const API = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "/api" : "http://127.0.0.1:8000/api");
 const LOCAL_REACTIONS = process.env.NEXT_PUBLIC_LOCAL_REACTIONS === "1";
 
@@ -158,7 +160,7 @@ export type StoryDetail = StoryCard & {
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(requestUrl(path), { cache: "no-store" });
+  const response = await fetch(requestUrl(path), { cache: "no-store", headers: headersForProviderRequest(path) });
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.detail || `API request failed (${response.status})`);
@@ -167,9 +169,11 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 async function apiWrite<T>(path: string, method: "POST" | "PUT" | "PATCH" | "DELETE", body?: unknown): Promise<T> {
+  const headers = new Headers(headersForProviderRequest(path));
+  if (body !== undefined) headers.set("Content-Type", "application/json");
   const response = await fetch(requestUrl(path), {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
   });

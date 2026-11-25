@@ -46,7 +46,7 @@ New non-synthetic articles use TypeSafe JEV for Government of India relevance, a
 
 Gemini generates neutral summaries and key points for newly collected non-synthetic records. The Worker sends bounded source text, keeps the key server-side, and maps model-selected sentence IDs back to exact stored sentences for evidence. It retries transient service errors and tries Gemini 3.7 Flash if Gemini 3.8 Flash remains unavailable. If Gemini still fails, the record is labeled with the API failure and deterministic text rules provide a limited fallback; no model weights are downloaded. Synthetic demo articles do not call model APIs.
 
-For the deployed Worker, run this from `apps/web` and enter the key only into Wrangler's hidden prompt:
+For an optional shared deployment key, run this from `apps/web` and enter the value only into Wrangler's hidden prompt:
 
 ```powershell
 npx wrangler secret put GEMINI_API_KEY
@@ -54,7 +54,7 @@ npx wrangler secret put GEMINI_API_KEY
 
 For optional local Wrangler development, copy `.dev.vars.example` to `.dev.vars` in `apps/web` and add your key there. `.dev.vars` is gitignored. This is not needed to use the hosted app.
 
-Gemini is used for prose generation; TypeSafe JEV remains responsible for optional structured classifications. Configure `TYPESAFE_API_KEY` separately if JEV is also desired. Do not paste either key into source files, the browser, or chat.
+Gemini generates evidence-linked prose; TypeSafe JEV remains a separate optional classifier. Configure `TYPESAFE_API_KEY` separately if JEV is also desired. Individual users can choose a Gemini model and provide a Gemini key in **Provider keys**. Their key is held in that tab's session storage, sent only with provider requests, and never stored in D1. Use that screen only on a trusted device; charges are billed to the account behind the key.
 
 ## Optional Scrape Creators Reddit comments
 
@@ -64,7 +64,7 @@ The public reaction collector can add Reddit comment search through Scrape Creat
 npx wrangler secret put SCRAPECREATORS_API_KEY
 ```
 
-Each uncached scan makes one Reddit comment-search request. The Provider keys page reports whether the secret is present without revealing its value. Do not enter provider keys in the public dashboard or store them in D1. Local demo configuration uses `SCRAPECREATORS_API_KEY` in the root `.env` file.
+Each uncached scan makes one Reddit comment-search request. A user can enter a personal Scrape Creators key in **Provider keys**; it stays in that tab and is not stored in D1. Deployment owners may also configure a shared Worker secret. Local demo defaults can use `SCRAPECREATORS_API_KEY` in the root `.env` file.
 
 ## Hosted prototype boundaries
 
