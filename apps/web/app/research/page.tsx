@@ -145,8 +145,7 @@ export default function ResearchSearchPage() {
 
   return <>
     <div className="page-heading-row research-heading">
-      <div><p className="eyebrow">LIVE DISCOVERY / RESEARCH QUERY</p><h1 className="page-title">Find the coverage.</h1><p className="page-lede">Search public news coverage around a policy, campaign, or announcement. Collected records go straight into the evidence, analysis, and story comparison workflow.</p></div>
-      <div className="heading-meta"><strong>SEARCH → ANALYZE → COMPARE</strong>{process.env.NEXT_PUBLIC_DEPLOYMENT_LABEL?.includes("CLOUDFLARE") ? "Stored in Cloudflare D1 with source links" : "Stored locally with source links"}</div>
+      <div><h1 className="page-title">Search coverage</h1><p className="page-lede">Collect public news articles about a policy, campaign, or announcement. Review the sources and compare related coverage.</p></div>
     </div>
 
     <div className="research-note"><span className="research-note-icon"><Radio size={15} /></span><div><strong>Online news search</strong><span>Uses {options?.providers.join(", ") || "public news feeds"}. Selection narrows the sample; feeds may miss relevant reports. No model API key is required.</span></div><span className="research-key-status"><Check size={12} /> NO KEY NEEDED</span></div>
@@ -167,8 +166,7 @@ export default function ResearchSearchPage() {
         <div className="research-form-head research-form-subhead"><span className="form-step">03</span><div><h2>Choose languages</h2><p>Language results are checked from the text, then filtered.</p></div></div>
         <div className="choice-grid language-choice-grid">{options?.languages.map((language) => <label className="choice-card" key={language.code}><input type="checkbox" checked={languages.includes(language.code)} onChange={() => toggleValue(languages, language.code, setLanguages)} /><span className="choice-check"><Check size={11} /></span><span>{language.label}</span></label>)}</div>
 
-        <div className="research-form-head research-form-subhead"><span className="form-step">04</span><div><h2>Optionally select outlets</h2><p>{outletIds.length ? `${selectedOutletNames.length} selected` : "All discoverable outlets are included by default."}</p></div></div>
-        <div className="outlet-choice-grid">{options?.outlets.map((outlet) => <label className="outlet-choice" key={outlet.id}><input type="checkbox" checked={outletIds.includes(outlet.id)} onChange={() => toggleValue(outletIds, outlet.id, setOutletIds)} /><span>{outlet.name}</span></label>)}</div>
+        <details className="outlet-disclosure"><summary>Choose outlets <span>{outletIds.length ? `${selectedOutletNames.length} selected` : "Optional · all outlets"}</span></summary><div className="outlet-choice-grid">{options?.outlets.map((outlet) => <label className="outlet-choice" key={outlet.id}><input type="checkbox" checked={outletIds.includes(outlet.id)} onChange={() => toggleValue(outletIds, outlet.id, setOutletIds)} /><span>{outlet.name}</span></label>)}</div></details>
         <div className="research-limit-row"><label htmlFor="per-language-limit">Maximum articles per language</label><select id="per-language-limit" className="filter-select" value={perLanguageLimit} onChange={(event) => setPerLanguageLimit(Number(event.target.value))}>{[1, 2, 3, 5, 8, 10].filter((count) => count <= (options?.maximum_articles_per_language ?? 1)).map((count) => <option value={count} key={count}>{count} {count === 1 ? "article" : "articles"}</option>)}</select></div>
         <button className="btn-primary research-submit" type="submit" disabled={submitting || loadingOptions || languages.length === 0}><Search size={14} />{submitting ? "Starting search…" : "Search and analyze"}</button>
         <p className="research-form-foot">Searches at most {languages.length * perLanguageLimit} articles. A publisher page may be unavailable or paywalled; its feed excerpt will be labeled clearly.</p>

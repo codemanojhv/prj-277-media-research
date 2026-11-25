@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, FileText, Layers3, Languages, RefreshCw, Search, ShieldCheck, Workflow } from "lucide-react";
+import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { API, apiGet, languageName, type AnalysisProviderStatus, type Overview, type StoryCard } from "@/lib/api";
 
@@ -51,36 +51,27 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="page-heading-row">
-        <div>
-          <p className="eyebrow">REGIONAL MEDIA / GOVERNMENT COVERAGE</p>
-          <h1 className="page-title">Coverage, in context.</h1>
-          <p className="page-lede">A 360-degree view of how the same public story appears across languages and outlets. Every signal stays connected to its source article.</p>
-        </div>
-        <div className="heading-meta"><strong>RESEARCH VIEW / 01</strong>Descriptive measures · article-linked evidence</div>
+      <div className="overview-intro">
+        <div><h1 className="page-title">Research overview</h1><p className="page-lede">Explore the coverage you’ve collected, compare related stories, and follow each interpretation back to its source.</p></div>
+        <Link href="/research" className="btn-primary"><Search size={16} /> New coverage search <ArrowUpRight size={15} /></Link>
       </div>
 
-      <div className="demo-banner">
-        <div className="demo-seal">i</div>
-        <div><strong>SYNTHETIC ACADEMIC DATASET INCLUDED</strong><span>{overview?.synthetic_articles ?? 0} fictional articles for interface demonstration. Online search results are stored with their own query and source provenance.</span></div>
-      </div>
+      <div className="sample-notice"><strong>About this sample</strong><span>{overview?.synthetic_articles ?? "—"} fictional articles are included for demonstration. Search results are identified by their source and collection method.</span><Link href="/methodology">Read methodology <ArrowUpRight size={14} /></Link></div>
 
-      <div className="research-cta-banner"><div><span className="research-cta-icon"><Search size={15} /></span><div><strong>Research a current campaign or announcement</strong><span>Choose a topic, dates, languages, and outlets to collect live public coverage.</span></div></div><Link href="/research" className="btn-primary">Search news coverage <ArrowUpRight size={13} /></Link></div>
-
-      {providerStatus && <div className="note-box" role={providerStatus.ready ? "status" : "alert"}><strong>Structured decisions · {providerStatus.display_name}</strong><br />{providerStatus.message}{providerStatus.text_generation && <><br /><strong>Text generation · {providerStatus.text_generation.display_name}</strong> · {providerStatus.text_generation.model}</>}</div>}
+      {providerStatus && <details className="provider-details"><summary>Analysis configuration <span>{providerStatus.display_name}</span></summary><p>{providerStatus.message}{providerStatus.text_generation && <> Text generation: {providerStatus.text_generation.display_name} · {providerStatus.text_generation.model}.</>} <Link href="/settings">Manage provider keys</Link></p></details>}
 
       {error && <div className="error-state" role="alert">{error}. Start the local demo with <code>npm run demo</code> and refresh this page.</div>}
 
       <section className="metrics-grid" aria-label="Dataset metrics">
-        <Metric label="Articles collected" value={overview?.total_articles} foot="STORED RECORDS" icon={<FileText size={16} />} />
-        <Metric label="GoI relevant" value={overview?.relevant_articles} foot="STORED CLASSIFICATIONS" icon={<ShieldCheck size={16} />} />
-        <Metric label="Story clusters" value={overview?.story_clusters} foot="SEMANTIC GROUPS" icon={<Layers3 size={16} />} />
-        <Metric label="Languages" value={overview?.languages} foot="DETECTED IN SAMPLE" icon={<Languages size={16} />} />
+        <Metric label="Articles" value={overview?.total_articles} foot="in the collection" />
+        <Metric label="GoI relevant" value={overview?.relevant_articles} foot="model classifications" />
+        <Metric label="Story groups" value={overview?.story_clusters} foot="related coverage" />
+        <Metric label="Languages" value={overview?.languages} foot="detected in the sample" />
       </section>
 
       <section className="dashboard-grid">
         <div className="panel">
-          <div className="panel-header"><div><h2 className="panel-title">Coverage rhythm</h2><p className="panel-subtitle">Published articles by date in the stored sample</p></div><span className="panel-kicker">ARTICLE COUNT</span></div>
+          <div className="panel-header"><div><h2 className="panel-title">Articles over time</h2><p className="panel-subtitle">Publication dates in the stored sample</p></div><span className="panel-kicker">ARTICLE COUNT</span></div>
           <div className="chart-wrap">
             {overview && overview.articles_over_time.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={overview.articles_over_time} margin={{ top: 15, right: 8, bottom: 0, left: -19 }}>
               <defs><linearGradient id="coverageFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6e9880" stopOpacity={0.25} /><stop offset="90%" stopColor="#6e9880" stopOpacity={0.01} /></linearGradient></defs>
@@ -131,8 +122,8 @@ export default function DashboardPage() {
   );
 }
 
-function Metric({ label, value, foot, icon }: { label: string; value: number | undefined; foot: string; icon: React.ReactNode }) {
-  return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className="metric-icon">{icon}</span></div><div className="metric-value">{value ?? "—"}</div><div className="metric-foot">{foot}</div></div>;
+function Metric({ label, value, foot }: { label: string; value: number | undefined; foot: string }) {
+  return <div className="metric-card"><div className="metric-top">{label}</div><div className="metric-value">{value ?? "—"}</div><div className="metric-foot">{foot}</div></div>;
 }
 
 function StoryTile({ story, index }: { story: StoryCard; index: number }) {

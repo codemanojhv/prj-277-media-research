@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, ChartNoAxesCombined, Database, FileText, FlaskConical, PanelsTopLeft, RadioTower, Search, Settings2, SlidersHorizontal } from "lucide-react";
+import { BookOpenText, ChartNoAxesCombined, Database, FileText, PanelsTopLeft, RadioTower, Search, Settings2, SlidersHorizontal } from "lucide-react";
 
 const navigation = [
   { href: "/", label: "Overview", icon: PanelsTopLeft },
@@ -38,17 +38,11 @@ export function ResearchShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-spacer" />
-        <div className="sidebar-method-card">
-          <div className="method-icon"><FlaskConical size={16} /></div>
-          <p>Evidence first</p>
-          <span>Every interpretation links back to the article sample it came from.</span>
-          <Link href="/methodology">Read the method <span aria-hidden="true">↗</span></Link>
-        </div>
         <div className="sidebar-footer"><Database size={13} /><span>{storageLabel}</span></div>
       </aside>
       <main className="main-stage" id="main-content" tabIndex={-1}>
         <header className="topbar">
-          <div className="crumb"><span>PRJ_277</span><span className="crumb-slash">/</span><span>360° coverage study</span></div>
+          <div className="crumb"><span>PRJ_277</span><span className="crumb-slash">/</span><span>Media research workspace</span></div>
           <div className="topbar-right"><span className="status-dot" /> {deploymentLabel} <span className="topbar-divider" /> {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</div>
         </header>
         <div className="page-content">{children}</div>
