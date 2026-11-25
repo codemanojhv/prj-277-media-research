@@ -106,9 +106,9 @@ export default function ArticleDetailPage() {
           <details style={{ marginTop: 15, color: "#788078", fontSize: 10 }}><summary style={{ cursor: "pointer" }}>Show raw collected content</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", background: "#f1f0e9", padding: 12, borderRadius: 6, fontSize: 9 }}>{article.raw_content}</pre></details>
         </section>
 
-        <section className="panel detail-section"><div className="section-head" style={{ margin: "0 0 12px" }}><div><h2>Analysis evidence</h2><p>Quoted snippets are checked against this article's stored text.</p></div>{!article.is_synthetic && <button className="btn-secondary" type="button" onClick={runLiveAnalysis} disabled={reanalyzing}>{reanalyzing ? "Running JEV + Gemini…" : "Run live analysis"}</button>}</div>
+        <section className="panel detail-section"><div className="section-head" style={{ margin: "0 0 12px" }}><div><h2>Analysis evidence</h2><p>Quoted snippets are checked against this article's stored text.</p></div>{!article.is_synthetic && <button className="btn-secondary" type="button" onClick={runLiveAnalysis} disabled={reanalyzing}>{reanalyzing ? "Running analysis…" : "Run live analysis"}</button>}</div>
           {analysisError && <div className="note-box" role="status">{analysisError}</div>}
-          {reanalyzing && <div className="count-mono" style={{ marginBottom: 10 }}>The hosted service is analyzing the stored publisher text with configured providers.</div>}
+          {reanalyzing && <div className="count-mono" style={{ marginBottom: 10 }}>Rechecking the stored article text with the available analysis services.</div>}
           {analysis ? <>
             <AnalysisBlock title={analysis.evidence.gemini_generation ? "Summary · Gemini inference" : "Summary · local extraction"} value={analysis.summary} evidence={analysis.evidence.summary} />
             {analysis.evidence.gemini_generation && <>

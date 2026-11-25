@@ -18,10 +18,14 @@ from app.core.config import RELEVANCE_THRESHOLD
 from app.db.models import AppSetting, Article, ArticleAnalysis, Embedding, ProcessingJob, Source, Story, StoryArticle
 from app.db.session import SessionLocal, get_db
 from app.services.embeddings import EmbeddingProvider, cosine, lexical_embedding
+from app.services import gemini as gemini_service
+from app.services import jev as jev_service
+from app.services.analysis import analyze_article
 from app.services.ingestion import ingest_records, ingest_rss, ingest_url, parse_dataset
-from app.services.jev import provider_status
+from app.services.language import detect_language
 from app.services.news_research import LANGUAGE_LOCALES, OUTLET_BY_ID, OUTLETS, collect_online_coverage
 from app.services.pipeline import process_corpus
+from app.services.relevance import assess_relevance
 
 router = APIRouter(prefix="/api")
 
@@ -347,7 +351,7 @@ def health() -> dict:
 @router.get("/analysis/provider")
 def analysis_provider() -> dict:
     """Expose safe provider configuration status without returning credentials."""
-    return provider_status()
+    return jev_service.provider_status()
 
 
 @router.get("/analytics/overview")
@@ -775,6 +779,86 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> dict:
         story = db.get(Story, link.story_id)
         result["story"] = {"id": story.id, "canonical_title": story.canonical_title} if story else None
     return result
+
+
+@router.post("/articles/{article_id}/analyze")
+def analyze_one_article(article_id: int, db: Session = Depends(get_db)) -> dict:
+    article = db.scalar(
+        select(Article).where(Article.id == article_id)
+        .options(joinedload(Article.source), joinedload(Article.analysis))
+    )
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if article.is_synthetic:
+        raise HTTPException(status_code=409, detail="Synthetic demo records use local analysis only.")
+    if len(article.clean_content.strip()) < 40:
+        raise HTTPException(status_code=409, detail="This article has too little stored text to analyze.")
+
+    language, confidence = detect_language(article.clean_content, article.language)
+    result = analyze_article(article.clean_content, language)
+    relevance = assess_relevance(f"{article.title} {article.clean_content}")
+    if jev_service.config.ANALYSIS_PROVIDER != "local":
+        try:
+            decision_provider = jev_service.configured_jev_provider()
+            if decision_provider:
+                decisions = decision_provider.classify_article(article.title, article.clean_content, language)
+                result, relevance = jev_service.apply_jev_decisions(
+                    result, relevance, decisions, jev_service.config.JEV_MIN_CONFIDENCE
+                )
+        except jev_service.JevProviderError as exc:
+            result["evidence"] = {
+                **result.get("evidence", {}),
+                "jev_note": f"JEV was unavailable ({exc}). Local evidence rules were used.",
+            }
+
+    text_provider = gemini_service.configured_gemini_provider()
+    if text_provider:
+        try:
+            generated = text_provider.generate_summary(article.title, article.clean_content, language)
+            result = gemini_service.apply_gemini_summary(result, generated)
+        except gemini_service.GeminiProviderError as exc:
+            result["evidence"] = {
+                **result.get("evidence", {}),
+                "gemini_note": f"{exc} Local extracted summary was used.",
+            }
+
+    analysis = article.analysis or ArticleAnalysis(article_id=article.id)
+    for name, value in (
+        ("goi_relevance_score", relevance["score"]),
+        ("is_goi_relevant", relevance["is_relevant"]),
+        ("relevance_reasons", relevance["reasons"]),
+        ("sentiment", result["sentiment"]),
+        ("sentiment_score", result["sentiment_score"]),
+        ("sentiment_confidence", result["sentiment_confidence"]),
+        ("summary", result["summary"]),
+        ("key_points", result["key_points"]),
+        ("topics", result["topics"]),
+        ("entities", result["entities"]),
+        ("claims", result["claims"]),
+        ("concerns", result["concerns"]),
+        ("positive_aspects", result["positive_aspects"]),
+        ("evidence", result["evidence"]),
+        ("model", result["model"]),
+    ):
+        setattr(analysis, name, value)
+    if article.analysis is None:
+        db.add(analysis)
+        article.analysis = analysis
+    article.language = language
+    article.language_confidence = confidence
+    article.processed_at = datetime.now(UTC)
+    db.commit()
+
+    updated = db.scalar(
+        select(Article).where(Article.id == article_id)
+        .options(joinedload(Article.source), joinedload(Article.analysis))
+    )
+    result_data = article_detail(updated)
+    link = db.scalar(select(StoryArticle).where(StoryArticle.article_id == article_id))
+    if link:
+        story = db.get(Story, link.story_id)
+        result_data["story"] = {"id": story.id, "canonical_title": story.canonical_title} if story else None
+    return result_data
 
 
 @router.get("/sources")
