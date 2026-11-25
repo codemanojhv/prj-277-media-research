@@ -23,6 +23,7 @@ export function ResearchShell({ children }: { children: React.ReactNode }) {
   const storageLabel = deploymentLabel.includes("CLOUDFLARE") ? "CLOUDFLARE D1 RESEARCH STORE" : "LOCAL RESEARCH WORKSPACE";
   return (
     <div className="workspace">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="sidebar">
         <Link className="brand" href="/" aria-label="PRJ 277 home">
           <span className="brand-mark"><RadioTower size={18} strokeWidth={1.8} /></span>
@@ -33,7 +34,7 @@ export function ResearchShell({ children }: { children: React.ReactNode }) {
         <nav className="side-nav" aria-label="Main navigation">
           {navigation.filter((item) => !item.localOnly || !hosted).map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return <Link key={href} href={href} className={`nav-link ${active ? "active" : ""}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{active && <span className="nav-indicator" />}</Link>;
+            return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`nav-link ${active ? "active" : ""}`}><Icon size={17} strokeWidth={1.8} /><span>{label}</span>{active && <span className="nav-indicator" />}</Link>;
           })}
         </nav>
         <div className="sidebar-spacer" />
@@ -45,7 +46,7 @@ export function ResearchShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="sidebar-footer"><Database size={13} /><span>{storageLabel}</span></div>
       </aside>
-      <main className="main-stage">
+      <main className="main-stage" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div className="crumb"><span>PRJ_277</span><span className="crumb-slash">/</span><span>360° coverage study</span></div>
           <div className="topbar-right"><span className="status-dot" /> {deploymentLabel} <span className="topbar-divider" /> {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date())}</div>
