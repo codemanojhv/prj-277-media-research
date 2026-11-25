@@ -56,6 +56,27 @@ export default function DashboardPage() {
         <Link href="/research" className="btn-primary"><Search size={16} /> New coverage search <ArrowUpRight size={15} /></Link>
       </div>
 
+      <section className="explainer" aria-labelledby="explainer-title">
+        <div className="explainer-copy">
+          <span className="explainer-label">A QUICK INTRODUCTION · 18 SEC</span>
+          <h2 id="explainer-title">From a question to the evidence.</h2>
+          <p>See how to collect coverage, compare the stories, and trace the analysis back to its source.</p>
+          <ol className="explainer-steps">
+            <li><span>01</span> Search for a topic</li>
+            <li><span>02</span> Compare related coverage</li>
+            <li><span>03</span> Review the evidence</li>
+          </ol>
+          <Link href="/research" className="explainer-link">Start a search <ArrowUpRight size={15} /></Link>
+        </div>
+        <div className="explainer-media">
+          <video controls playsInline preload="metadata" poster="/media/research-explainer-poster.jpg" aria-label="Animated, silent introduction to PRJ 277" aria-describedby="explainer-transcript">
+            <source src="/media/research-explainer.mp4" type="video/mp4" />
+            Your browser cannot play this video. The walkthrough is available in text below.
+          </video>
+          <p id="explainer-transcript">Video walkthrough, no audio: enter a topic and select dates and languages; compare related articles by source and language; then open the source record to review the article, supporting excerpts, and collection details. Analysis is a research aid and is not a verified finding.</p>
+        </div>
+      </section>
+
       <div className="sample-notice"><strong>About this sample</strong><span>{overview?.synthetic_articles ?? "—"} fictional articles are included for demonstration. Search results are identified by their source and collection method.</span><Link href="/methodology">Read methodology <ArrowUpRight size={14} /></Link></div>
 
       {providerStatus && <details className="provider-details"><summary>Analysis configuration <span>{providerStatus.display_name}</span></summary><p>{providerStatus.message}{providerStatus.text_generation && <> Text generation: {providerStatus.text_generation.display_name} · {providerStatus.text_generation.model}.</>} <Link href="/settings">Manage provider keys</Link></p></details>}
